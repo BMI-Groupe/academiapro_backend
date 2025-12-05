@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Schedule extends Model
+{
+	use HasFactory;
+
+	protected $fillable = [
+		'classroom_id',
+		'subject_id',
+		'teacher_id',
+		'school_year_id',
+		'day_of_week',
+		'start_time',
+		'end_time',
+		'room',
+	];
+
+	protected $casts = [
+		// Time fields are stored as strings in format HH:MM:SS
+	];
+
+	public function classroom(): BelongsTo
+	{
+		return $this->belongsTo(Classroom::class);
+	}
+
+	public function subject(): BelongsTo
+	{
+		return $this->belongsTo(Subject::class);
+	}
+
+	public function teacher(): BelongsTo
+	{
+		return $this->belongsTo(Teacher::class);
+	}
+
+	public function schoolYear(): BelongsTo
+	{
+		return $this->belongsTo(SchoolYear::class);
+	}
+}
