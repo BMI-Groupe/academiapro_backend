@@ -234,7 +234,7 @@ class LargeDataSeeder extends Seeder
                             // INSCRIPTION
                             Enrollment::firstOrCreate(
                                 ['student_id' => $stu->id, 'classroom_id' => $cls->id, 'school_year_id' => $sy->id],
-                                ['enrolled_at' => $sy->start_date, 'school_id' => $cls->school_id]
+                                ['enrolled_at' => $sy->start_date]
                             );
                             
                             // PAIEMENTS
