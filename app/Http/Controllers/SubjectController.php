@@ -35,13 +35,27 @@ class SubjectController extends Controller
 
 	public function store(SubjectStoreRequest $request)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
 		DB::beginTransaction();
 		try {
-			$subject = $this->subjects->store($request->validated());
+            $data = $request->validated();
+            
+            if (!isset($data['school_id'])) {
+                $user = Auth::user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
+
+			$subject = $this->subjects->store($data);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new SubjectResource($subject)], 'Matière créée.', 201);
 		} catch (\Throwable $th) {
@@ -51,12 +65,12 @@ class SubjectController extends Controller
 
 	public function show(Subject $subject)
 	{
-		return ApiResponse::sendResponse(true, [new SubjectResource($subject->load(['classrooms', 'teachers']))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new SubjectResource($subject->load(['classrooms', 'schoolYear']))], 'Opération effectuée.', 200);
 	}
 
 	public function update(SubjectUpdateRequest $request, Subject $subject)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -72,7 +86,7 @@ class SubjectController extends Controller
 
 	public function destroy(Subject $subject)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 

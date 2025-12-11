@@ -34,15 +34,16 @@ class AuthRepository implements AuthInterface
             return false;
         }
 
-        // Supprimer les anciens tokens
-        $user->tokens()->delete();
+        // Supprimer les anciens tokens - TEMPORARILY DISABLED due to read-only table issue
+        // TODO: Fix MySQL table permissions or run: php artisan sanctum:prune-expired regularly
+        // $user->tokens()->delete();
         
         // Créer un nouveau token
         $token = $user->createToken($user->id)->plainTextToken;
         
         // Retourner les données dans le format attendu
         return [
-            'user' => $user,
+            'user' => new \App\Http\Resources\UserResource($user),
             'tokens' => [
                 'accessToken' => $token,
                 'refreshToken' => $token,
@@ -75,7 +76,7 @@ class AuthRepository implements AuthInterface
     public function deleteUser()
     {
         $user = auth('sanctum')->user();
-        $user->tokens()->delete();
+        // $user->tokens()->delete(); // Temporarily disabled due to read-only table issue
         $user->delete();
         return true;
     }

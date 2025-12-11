@@ -4,19 +4,30 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\ScopedBySchool;
+
 class Classroom extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'name',
 		'code',
 		'cycle',
 		'level',
+		'tuition_fee',
+		'school_year_id',
 	];
+
+    public function schoolYear(): BelongsTo
+    {
+        return $this->belongsTo(SchoolYear::class);
+    }
 
     public function enrollments(): HasMany
     {

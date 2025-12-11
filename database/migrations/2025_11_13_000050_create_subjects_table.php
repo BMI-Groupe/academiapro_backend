@@ -10,8 +10,12 @@ return new class extends Migration
 	{
 		Schema::create('subjects', function (Blueprint $table) {
 			$table->id();
+            $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
 			$table->string('name', 150);
-			$table->string('code', 50)->unique();
+			$table->string('code', 50);
+            $table->foreignId('school_year_id')->nullable()->constrained()->onDelete('cascade');
+            $table->integer('coefficient')->default(1);
+            $table->unique(['school_id', 'code']);
 			$table->timestamps();
 		});
 	}

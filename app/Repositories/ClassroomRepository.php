@@ -35,9 +35,7 @@ class ClassroomRepository implements ClassroomInterface
 		}
 
 		if (!empty($filters['school_year_id'])) {
-			$query->whereHas('classroomSubjects', function ($q) use ($filters) {
-				$q->where('school_year_id', $filters['school_year_id']);
-			});
+			$query->where('school_year_id', $filters['school_year_id']);
 		}
 
 		return $query->orderBy('cycle')->orderBy('level')->orderBy('name')->paginate($filters['per_page'] ?? 15);

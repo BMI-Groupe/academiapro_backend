@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use App\Traits\ScopedBySchool;
+
 class Schedule extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'classroom_id',
 		'subject_id',
 		'teacher_id',

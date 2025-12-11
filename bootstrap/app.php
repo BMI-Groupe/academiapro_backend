@@ -28,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
 		$middleware->appendToGroup('api', LaravelRequestDocsMiddleware::class);
     })
+    ->withProviders([
+        \Rakutentech\LaravelRequestDocs\LaravelRequestDocsServiceProvider::class,
+    ])
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();

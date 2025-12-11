@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use App\Traits\ScopedBySchool;
+
 class Grade extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'student_id',
 		'assignment_id',
 		'score',

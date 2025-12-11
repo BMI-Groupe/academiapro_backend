@@ -37,11 +37,28 @@ class SchoolYearController extends Controller
         return ApiResponse::sendResponse(true, [new SchoolYearResource($year)], 'Opération effectuée.', 200);
     }
 
+    public function show(SchoolYear $schoolYear)
+    {
+        return ApiResponse::sendResponse(true, [new SchoolYearResource($schoolYear)], 'Année scolaire récupérée.', 200);
+    }
+
     public function store(SchoolYearStoreRequest $request)
     {
         DB::beginTransaction();
         try {
             $data = $request->validated();
+
+            if (!isset($data['school_id'])) {
+                $user = auth()->user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
             
             // If this year is being set as active, deactivate all other years
             if (isset($data['is_active']) && $data['is_active']) {

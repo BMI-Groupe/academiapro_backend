@@ -7,15 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\ScopedBySchool;
+
 class Teacher extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'user_id',
 		'first_name',
 		'last_name',
 		'phone',
+		'email',
 		'specialization',
 		'birth_date',
 	];

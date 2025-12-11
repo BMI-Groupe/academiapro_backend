@@ -11,8 +11,8 @@ class AssignmentUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Seul le directeur peut modifier des devoirs
-        return $this->user() && $this->user()->role === 'directeur';
+        // Admin et directeur peuvent modifier des devoirs
+        return $this->user() && in_array($this->user()->role, ['admin', 'directeur']);
     }
 
     public function rules(): array
@@ -28,6 +28,7 @@ class AssignmentUpdateRequest extends FormRequest
             'due_date' => ['nullable', 'date'],
             'classroom_id' => ['nullable', 'exists:classrooms,id'],
             'subject_id' => ['nullable', 'exists:subjects,id'],
+            'period' => ['nullable', 'integer', 'in:1,2,3'],
         ];
     }
 
@@ -44,7 +45,7 @@ class AssignmentUpdateRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'Seul le directeur peut modifier des devoirs.',
+            'message' => 'Vous n\'êtes pas autorisé à modifier des devoirs.',
             'data' => null
         ], 403));
     }

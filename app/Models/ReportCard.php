@@ -14,16 +14,48 @@ class ReportCard extends Model
         'student_id',
         'school_year_id',
         'classroom_id',
+        'period', // 1, 2 for semesters OR 1, 2, 3 for trimesters, null for annual
         'average',
         'rank',
         'comments',
         'generated_at',
+        'absences',
     ];
 
     protected $casts = [
         'average' => 'decimal:2',
         'generated_at' => 'datetime',
+        'period' => 'integer',
+        'absences' => 'integer',
     ];
+
+    /**
+     * Get period label based on school year configuration.
+     */
+    public function getPeriodLabelAttribute(): string
+    {
+        if ($this->period === null) {
+            return 'Annuel';
+        }
+
+        return $this->schoolYear?->getPeriodLabel($this->period) ?? "Période {$this->period}";
+    }
+
+    /**
+     * Check if this is a periodic report card (semester or trimester).
+     */
+    public function isPeriodic(): bool
+    {
+        return $this->period !== null;
+    }
+
+    /**
+     * Check if this is an annual report card.
+     */
+    public function isAnnual(): bool
+    {
+        return $this->period === null;
+    }
 
     public function student(): BelongsTo
     {

@@ -16,6 +16,7 @@ class SchoolYearResource extends JsonResource
             'year_start' => $this->year_start,
             'year_end' => $this->year_end,
             'label' => $this->label,
+            'period_system' => $this->period_system, // 'semester' or 'trimester'
             'is_active' => (bool) $this->is_active,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),

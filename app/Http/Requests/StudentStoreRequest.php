@@ -23,6 +23,9 @@ class StudentStoreRequest extends FormRequest
 			'gender' => 'nullable|in:M,F',
 			'parent_contact' => 'nullable|string|max:100',
 			'address' => 'nullable|string|max:255',
+			'classroom_id' => 'nullable|exists:classrooms,id',
+			'school_year_id' => 'nullable|exists:school_years,id',
+            'school_id' => 'nullable|exists:schools,id',
 		];
 	}
 

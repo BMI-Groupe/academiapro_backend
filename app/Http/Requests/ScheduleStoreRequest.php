@@ -24,6 +24,7 @@ class ScheduleStoreRequest extends FormRequest
 			'start_time' => 'required|date_format:H:i',
 			'end_time' => 'required|date_format:H:i|after:start_time',
 			'room' => 'nullable|string|max:50',
+            'school_id' => 'nullable|exists:schools,id',
 		];
 	}
 

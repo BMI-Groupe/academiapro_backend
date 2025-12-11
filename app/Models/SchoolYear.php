@@ -6,24 +6,79 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\ScopedBySchool;
+
 class SchoolYear extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'year_start',
 		'year_end',
 		'label',
 		'is_active',
 		'start_date',
 		'end_date',
+		'period_system', // 'trimester' or 'semester'
+		'total_periods', // 2 or 3
 	];
 
 	protected $casts = [
 		'is_active' => 'boolean',
 		'start_date' => 'date',
 		'end_date' => 'date',
+		'total_periods' => 'integer',
 	];
+
+	/**
+	 * Check if this school year uses trimester system.
+	 */
+	public function usesTrimester(): bool
+	{
+		return $this->period_system === 'trimester';
+	}
+
+	/**
+	 * Check if this school year uses semester system.
+	 */
+	public function usesSemester(): bool
+	{
+		return $this->period_system === 'semester';
+	}
+
+	/**
+	 * Get period label for a given period number.
+	 */
+	public function getPeriodLabel(int $period): string
+	{
+		if ($this->usesTrimester()) {
+			return match($period) {
+				1 => '1er Trimestre',
+				2 => '2e Trimestre',
+				3 => '3e Trimestre',
+				default => 'Période inconnue'
+			};
+		} else {
+			return match($period) {
+				1 => '1er Semestre',
+				2 => '2e Semestre',
+				default => 'Période inconnue'
+			};
+		}
+	}
+
+	/**
+	 * Get all period labels for this school year.
+	 */
+	public function getAllPeriodLabels(): array
+	{
+		$labels = [];
+		for ($i = 1; $i <= $this->total_periods; $i++) {
+			$labels[$i] = $this->getPeriodLabel($i);
+		}
+		return $labels;
+	}
 
 	public function enrollments(): HasMany
 	{

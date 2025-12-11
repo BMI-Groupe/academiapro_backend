@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\ScopedBySchool;
+
 class Assignment extends Model
 {
-    use HasFactory;
+    use HasFactory, ScopedBySchool;
 
     protected $fillable = [
+        'school_id',
         'title',
         'description',
         'type',
@@ -23,6 +26,7 @@ class Assignment extends Model
         'classroom_id',
         'subject_id',
         'school_year_id',
+        'period', // 1, 2 for semesters OR 1, 2, 3 for trimesters
         'created_by',
     ];
 
@@ -32,6 +36,7 @@ class Assignment extends Model
         'max_score' => 'decimal:2',
         'passing_score' => 'decimal:2',
         'total_score' => 'decimal:2',
+        'period' => 'integer',
     ];
 
     public function classroom(): BelongsTo

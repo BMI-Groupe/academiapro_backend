@@ -40,13 +40,27 @@ class ClassroomController extends Controller
 
 	public function store(ClassroomStoreRequest $request)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
 		DB::beginTransaction();
 		try {
-			$classroom = $this->classrooms->store($request->validated());
+            $data = $request->validated();
+            
+            if (!isset($data['school_id'])) {
+                $user = Auth::user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
+
+			$classroom = $this->classrooms->store($data);
 			$classroom->load(['subjects', 'enrollments']);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new ClassroomResource($classroom)], 'Classe créée.', 201);
@@ -63,7 +77,7 @@ class ClassroomController extends Controller
 
 	public function update(ClassroomUpdateRequest $request, Classroom $classroom)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -80,7 +94,7 @@ class ClassroomController extends Controller
 
 	public function destroy(Classroom $classroom)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -96,7 +110,7 @@ class ClassroomController extends Controller
 
 	public function enroll(ClassroomEnrollRequest $request, Classroom $classroom)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -118,7 +132,7 @@ class ClassroomController extends Controller
 	}
 	public function syncSubjects(ClassroomSubjectSyncRequest $request, Classroom $classroom)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -135,7 +149,7 @@ class ClassroomController extends Controller
 
 	public function assignTeachers(ClassroomAssignTeacherRequest $request, Classroom $classroom)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -174,10 +188,12 @@ class ClassroomController extends Controller
 				->first();
 		}
 
-		// Get all students in the classroom
+		// Get all students in the classroom via enrollments
 		$students = DB::table('students')
-			->where('classroom_id', $classroom->id)
-			->select('id', 'first_name', 'last_name', 'registration_number')
+            ->join('enrollments', 'students.id', '=', 'enrollments.student_id')
+			->where('enrollments.classroom_id', $classroom->id)
+            ->where('enrollments.school_year_id', $schoolYearId)
+			->select('students.id', 'students.first_name', 'students.last_name', 'students.matricule')
 			->get();
 
 		// Calculate average and grades for each student

@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Re-enabled with optimized queued jobs implementation
         \App\Models\Grade::observe(\App\Observers\GradeObserver::class);
     }
 }

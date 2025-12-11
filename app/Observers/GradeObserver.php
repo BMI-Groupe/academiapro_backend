@@ -3,9 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Grade;
-use App\Models\ReportCard;
-use App\Models\Student;
-use App\Models\SchoolYear;
+use App\Jobs\CalculateReportCardJob;
 use Illuminate\Support\Facades\Log;
 
 class GradeObserver
@@ -15,7 +13,7 @@ class GradeObserver
      */
     public function created(Grade $grade): void
     {
-        $this->calculateStudentAverage($grade);
+        $this->dispatchReportCardCalculation($grade);
     }
 
     /**
@@ -23,7 +21,7 @@ class GradeObserver
      */
     public function updated(Grade $grade): void
     {
-        $this->calculateStudentAverage($grade);
+        $this->dispatchReportCardCalculation($grade);
     }
 
     /**
@@ -31,91 +29,64 @@ class GradeObserver
      */
     public function deleted(Grade $grade): void
     {
-        $this->calculateStudentAverage($grade);
+        $this->dispatchReportCardCalculation($grade);
     }
 
     /**
-     * Calculate student average and update ReportCard.
+     * Dispatch report card calculation jobs for the student.
+     * Calculates both quarterly and annual report cards.
      */
-    protected function calculateStudentAverage(Grade $grade): void
+    protected function dispatchReportCardCalculation(Grade $grade): void
     {
         try {
-            $student = $grade->student;
             $assignment = $grade->assignment;
             
-            if (!$student || !$assignment) {
+            if (!$assignment) {
+                Log::warning("Grade {$grade->id} has no assignment, skipping report card calculation");
+                return;
+            }
+
+            $student = $grade->student;
+            if (!$student) {
+                Log::warning("Grade {$grade->id} has no student, skipping report card calculation");
                 return;
             }
 
             $schoolYearId = $assignment->school_year_id;
             $classroomId = $assignment->classroom_id;
+            $period = $assignment->period;
 
-            // Get all grades for this student in this school year
-            $grades = Grade::whereHas('assignment', function ($query) use ($schoolYearId, $classroomId) {
-                $query->where('school_year_id', $schoolYearId)
-                      ->where('classroom_id', $classroomId);
-            })->where('student_id', $student->id)->get();
-
-            if ($grades->isEmpty()) {
-                return;
+            // Calculate quarterly report card if assignment has a term
+            if ($period !== null) {
+                CalculateReportCardJob::dispatch(
+                    $student->id,
+                    $schoolYearId,
+                    $classroomId,
+                    $period
+                )->onQueue('reports');
             }
 
-            $totalWeightedScore = 0;
-            $totalCoefficients = 0;
+            // Always calculate annual report card (term = null)
+            CalculateReportCardJob::dispatch(
+                $student->id,
+                $schoolYearId,
+                $classroomId,
+                null // Annual
+            )->onQueue('reports');
 
-            // Group grades by subject
-            $gradesBySubject = $grades->groupBy(function ($grade) {
-                return $grade->assignment->subject_id;
-            });
+            Log::info("Report card calculation dispatched", [
+                'student_id' => $student->id,
+                'school_year_id' => $schoolYearId,
+                'classroom_id' => $classroomId,
+                'period' => $period
+            ]);
 
-            foreach ($gradesBySubject as $subjectId => $subjectGrades) {
-                // Calculate subject average (simple average of assignments for now)
-                $subjectAverage = $subjectGrades->avg('score'); // Assuming score is already normalized or consistent
-
-                // Get coefficient for this subject in this class
-                $classroomSubject = \App\Models\ClassroomSubject::where('classroom_id', $classroomId)
-                    ->where('subject_id', $subjectId)
-                    ->first();
-                
-                $coefficient = $classroomSubject ? $classroomSubject->coefficient : 1;
-
-                $totalWeightedScore += $subjectAverage * $coefficient;
-                $totalCoefficients += $coefficient;
-            }
-
-            $generalAverage = $totalCoefficients > 0 ? $totalWeightedScore / $totalCoefficients : 0;
-
-            // Update or Create ReportCard
-            ReportCard::updateOrCreate(
-                [
-                    'student_id' => $student->id,
-                    'school_year_id' => $schoolYearId,
-                    'classroom_id' => $classroomId,
-                ],
-                [
-                    'average' => $generalAverage,
-                    'generated_at' => now(),
-                ]
-            );
-
-            // Trigger Rank Calculation (could be a separate job to avoid performance issues)
-            $this->calculateRanks($schoolYearId, $classroomId);
         } catch (\Exception $e) {
-            Log::error('GradeObserver Error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-        }
-    }
-
-    protected function calculateRanks($schoolYearId, $classroomId)
-    {
-        $reportCards = ReportCard::where('school_year_id', $schoolYearId)
-            ->where('classroom_id', $classroomId)
-            ->orderByDesc('average')
-            ->get();
-
-        $rank = 1;
-        foreach ($reportCards as $card) {
-            $card->update(['rank' => $rank++]);
+            Log::error('GradeObserver Error: ' . $e->getMessage(), [
+                'grade_id' => $grade->id,
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }
+

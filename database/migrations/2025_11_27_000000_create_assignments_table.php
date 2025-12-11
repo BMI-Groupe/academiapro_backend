@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('assignments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
             $table->string('title', 150);
             $table->text('description')->nullable();
             $table->string('type'); // Devoir, Examen, Composition, etc.
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->foreignId('subject_id')->nullable()->constrained('subjects')->onDelete('cascade');
             $table->foreignId('school_year_id')->constrained('school_years')->onDelete('cascade');
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null'); // Director
+            $table->integer('period')->nullable();
             $table->timestamps();
         });
     }

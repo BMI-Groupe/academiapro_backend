@@ -13,6 +13,7 @@ return new class extends Migration
 	{
 		Schema::create('students', function (Blueprint $table) {
 			$table->id();
+            $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
 			$table->string('first_name', 100);
 			$table->string('last_name', 100);
 			$table->string('matricule', 50)->unique();
@@ -21,6 +22,7 @@ return new class extends Migration
 			$table->string('address', 255)->nullable();
 			$table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
 			$table->foreignId('parent_user_id')->nullable()->constrained('users')->onDelete('set null'); // Lien parent
+			$table->string('parent_contact')->nullable();
 			$table->timestamps();
 		});
 	}

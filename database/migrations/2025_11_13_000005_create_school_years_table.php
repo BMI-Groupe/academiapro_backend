@@ -13,12 +13,17 @@ return new class extends Migration
 	{
 		Schema::create('school_years', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
             $table->year('year_start');
             $table->year('year_end');
             $table->string('label', 100)->unique();
             $table->boolean('is_active')->default(true);
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
+            $table->enum('period_system', ['trimester', 'semester'])->default('trimester')
+                ->comment('trimester = 3 periods, semester = 2 periods');
+            $table->tinyInteger('total_periods')->default(3)
+                ->comment('Number of periods in the school year (2 for semester, 3 for trimester)');
             $table->timestamps();
             
             // Ensure only one school year is active at a time (partially supported by some DBs, logic handled in app usually, but unique index works if we use null for inactive or just handle it in app code. 

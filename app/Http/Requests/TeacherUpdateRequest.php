@@ -19,6 +19,7 @@ class TeacherUpdateRequest extends FormRequest
 			'first_name' => 'sometimes|required|string|max:100',
 			'last_name' => 'sometimes|required|string|max:100',
 			'phone' => 'nullable|string|max:20',
+			'email' => 'nullable|email|max:255|unique:teachers,email,' . $this->route('teacher'),
 			'specialization' => 'nullable|string|max:100',
 			'birth_date' => 'nullable|date',
 		];

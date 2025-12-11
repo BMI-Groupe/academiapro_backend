@@ -17,5 +17,6 @@ class DatabaseSeeder extends Seeder
         // Seed initial data: director, teacher, students
         // Login credentials are documented in InitialDataSeeder
         $this->call(InitialDataSeeder::class);
+        $this->call(LargeDataSeeder::class);
     }
 }

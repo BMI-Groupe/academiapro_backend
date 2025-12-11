@@ -44,7 +44,7 @@ class GradeController extends Controller
 	public function store(GradeStoreRequest $request)
 	{
 		// Vérifier que l'utilisateur est un enseignant
-		if (Auth::user()->role !== 'enseignant' && Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur', 'enseignant'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -65,6 +65,9 @@ class GradeController extends Controller
 			$data = $request->validated();
 			$data['graded_by'] = Auth::user()->role === 'enseignant' ? Teacher::where('user_id', Auth::id())->first()->id : null;
 			$data['graded_at'] = $data['graded_at'] ?? now();
+            
+            // Assigner school_id depuis l'assignment
+            $data['school_id'] = $assignment->school_id;
 			
 			$grade = $this->grades->store($data);
 			DB::commit();
@@ -76,13 +79,13 @@ class GradeController extends Controller
 
 	public function show(Grade $grade)
 	{
-		return ApiResponse::sendResponse(true, [new GradeResource($grade->load(['student', 'subject', 'classroom', 'teacher', 'schoolYear']))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new GradeResource($grade->load(['student', 'assignment.subject', 'assignment.classroom', 'assignment.schoolYear', 'grader']))], 'Opération effectuée.', 200);
 	}
 
 	public function update(GradeUpdateRequest $request, Grade $grade)
 	{
 		// Vérifier que l'utilisateur est un enseignant
-		if (Auth::user()->role !== 'enseignant' && Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur', 'enseignant'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -110,7 +113,7 @@ class GradeController extends Controller
 
 	public function destroy(Grade $grade)
 	{
-		if (Auth::user()->role !== 'enseignant' && Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur', 'enseignant'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 

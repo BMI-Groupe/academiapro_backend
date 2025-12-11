@@ -8,11 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\ScopedBySchool;
+
 class Student extends Model
 {
-	use HasFactory;
+	use HasFactory, ScopedBySchool;
 
 	protected $fillable = [
+		'school_id',
 		'first_name',
 		'last_name',
 		'matricule',
@@ -21,6 +24,7 @@ class Student extends Model
 		'address',
 		'user_id',
         'parent_user_id',
+        'parent_contact',
 	];
 
 	public function enrollments(): HasMany
@@ -56,6 +60,11 @@ class Student extends Model
     public function reportCards(): HasMany
     {
         return $this->hasMany(ReportCard::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 }
 

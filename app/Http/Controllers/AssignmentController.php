@@ -68,6 +68,18 @@ class AssignmentController extends Controller
             $data['school_year_id'] = $activeYear->id;
             $data['created_by'] = Auth::id();
 
+            if (!isset($data['school_id'])) {
+                $user = Auth::user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
+
             $assignment = Assignment::create($data);
 
             DB::commit();
@@ -113,9 +125,9 @@ class AssignmentController extends Controller
 
     public function destroy(Assignment $assignment)
     {
-        // Seul le directeur peut supprimer
-        if (Auth::user()->role !== 'directeur') {
-            return ApiResponse::sendResponse(false, [], 'Seul le directeur peut supprimer des devoirs.', 403);
+        // Admin et directeur peuvent supprimer
+        if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
+            return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à supprimer des devoirs.', 403);
         }
 
         DB::beginTransaction();

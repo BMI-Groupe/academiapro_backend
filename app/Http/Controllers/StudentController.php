@@ -12,13 +12,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
+use App\Services\PaymentService;
+
 class StudentController extends Controller
 {
 	private StudentInterface $students;
+	private PaymentService $paymentService;
 
-	public function __construct(StudentInterface $students)
+	public function __construct(StudentInterface $students, PaymentService $paymentService)
 	{
 		$this->students = $students;
+		$this->paymentService = $paymentService;
 	}
 
 	public function index(Request $request)
@@ -27,6 +31,7 @@ class StudentController extends Controller
 			'search' => $request->query('search'),
 			'per_page' => $request->query('per_page'),
 			'school_year_id' => $request->query('school_year_id'),
+			'classroom_id' => $request->query('classroom_id'),
 		];
 
 		$data = $this->students->paginate($filters)->through(fn ($s) => new StudentResource($s));
@@ -35,13 +40,27 @@ class StudentController extends Controller
 
 	public function store(StudentStoreRequest $request)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
 		DB::beginTransaction();
 		try {
-			$student = $this->students->store($request->validated());
+            $data = $request->validated();
+            
+            if (!isset($data['school_id'])) {
+                $user = Auth::user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
+
+			$student = $this->students->store($data);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new StudentResource($student)], 'Elève créé.', 201);
 		} catch (\Throwable $th) {
@@ -51,12 +70,12 @@ class StudentController extends Controller
 
 	public function show(Student $student)
 	{
-		return ApiResponse::sendResponse(true, [new StudentResource($student->load('subjects'))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new StudentResource($student->load('enrollments.classroom.subjects'))], 'Opération effectuée.', 200);
 	}
 
 	public function update(StudentUpdateRequest $request, Student $student)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -72,7 +91,7 @@ class StudentController extends Controller
 
 	public function destroy(Student $student)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -91,7 +110,7 @@ class StudentController extends Controller
 	 */
 	public function profile(Student $student)
 	{
-		$student->load(['classroom', 'subjects']);
+		$student->load(['enrollments.classroom']);
 		
 		// Get all school years the student has been enrolled in
 		$schoolYears = DB::table('grades')
@@ -139,13 +158,21 @@ class StudentController extends Controller
 		// Calculate statistics
 		$average = $grades->avg('score');
 		
-		// Get rank (simplified - could be improved with proper ranking logic)
-		$classroomId = $student->classroom_id;
+		// Get rank
+		$enrollment = DB::table('enrollments')
+            ->where('student_id', $student->id)
+            ->where('school_year_id', $schoolYearId)
+            ->first();
+            
+		$classroomId = $enrollment ? $enrollment->classroom_id : null;
+
 		if ($classroomId) {
 			$studentsAverages = DB::table('grades')
 				->join('assignments', 'grades.assignment_id', '=', 'assignments.id')
 				->join('students', 'grades.student_id', '=', 'students.id')
-				->where('students.classroom_id', $classroomId)
+                ->join('enrollments', 'students.id', '=', 'enrollments.student_id')
+				->where('enrollments.classroom_id', $classroomId)
+                ->where('enrollments.school_year_id', $schoolYearId)
 				->where('assignments.school_year_id', $schoolYearId)
 				->select('students.id', DB::raw('AVG(grades.score) as avg_score'))
 				->groupBy('students.id')
@@ -170,6 +197,22 @@ class StudentController extends Controller
 				'total_students' => $totalStudents
 			]
 		], 'Notes récupérées.', 200);
+	}
+
+	/**
+	 * Get student payments and balance
+	 */
+	public function payments(Request $request, Student $student)
+	{
+		$schoolYearId = $request->query('school_year_id');
+		
+		$payments = $this->paymentService->getStudentPayments($student->id, $schoolYearId);
+		$balance = $this->paymentService->getStudentBalance($student->id, $schoolYearId);
+
+		return ApiResponse::sendResponse(true, [
+			'payments' => $payments,
+			'balance' => $balance
+		], 'Paiements récupérés.', 200);
 	}
 }
 

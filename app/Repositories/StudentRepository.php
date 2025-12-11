@@ -10,7 +10,7 @@ class StudentRepository implements StudentInterface
 {
 	public function paginate(array $filters = []): LengthAwarePaginator
 	{
-		$query = Student::query()->with('enrollments.classroom.subjects');
+		$query = Student::query()->with('enrollments.classroom');
 
 		if (!empty($filters['search'])) {
 			$search = $filters['search'];
@@ -27,12 +27,42 @@ class StudentRepository implements StudentInterface
 			});
 		}
 
+		if (!empty($filters['classroom_id'])) {
+			$query->whereHas('enrollments', function ($q) use ($filters) {
+				$q->where('classroom_id', $filters['classroom_id']);
+			});
+		}
+
 		return $query->orderBy('last_name')->paginate($filters['per_page'] ?? 15);
 	}
 
 	public function store(array $data): Student
 	{
-		return Student::create($data)->load('enrollments.classroom.subjects');
+		$student = Student::create($data);
+
+		// Inscription automatique si classroom_id est présent
+		if (!empty($data['classroom_id'])) {
+			$schoolYearId = $data['school_year_id'] ?? null;
+			
+			if (!$schoolYearId) {
+				// Trouver l'année active pour cette école
+				$activeYear = \App\Models\SchoolYear::where('school_id', $student->school_id)
+					->where('is_active', true)
+					->first();
+				$schoolYearId = $activeYear?->id;
+			}
+
+			if ($schoolYearId) {
+				\App\Models\Enrollment::create([
+					'student_id' => $student->id,
+					'classroom_id' => $data['classroom_id'],
+					'school_year_id' => $schoolYearId,
+					'enrolled_at' => now(),
+				]);
+			}
+		}
+
+		return $student->load('enrollments.classroom.subjects');
 	}
 
 	public function update(Student $student, array $data): Student

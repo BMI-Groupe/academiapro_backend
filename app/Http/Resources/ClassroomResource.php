@@ -15,6 +15,8 @@ class ClassroomResource extends JsonResource
 			'code' => $this->code,
 			'cycle' => $this->cycle,
 			'level' => $this->level,
+            'tuition_fee' => $this->tuition_fee,
+            'school_year_id' => $this->school_year_id,
 			'subjects' => $this->whenLoaded('subjects', function () {
 				return $this->subjects->map(function ($subject) {
 					return [

@@ -22,6 +22,7 @@ class SchoolYearStoreRequest extends FormRequest
 			'is_active' => 'nullable|boolean',
 			'start_date' => 'nullable|date',
 			'end_date' => 'nullable|date|after_or_equal:start_date',
+            'school_id' => 'nullable|exists:schools,id',
 		];
 	}
 

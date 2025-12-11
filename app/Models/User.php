@@ -24,7 +24,14 @@ class User extends Authenticatable
 		'password',
         'role',
         'phone',
+        'profile_photo_path',
+        'school_id',
     ];
+
+    public function school()
+    {
+        return $this->belongsTo(School::class);
+    }
 
     // Role constants
     const ROLE_ADMIN = 'admin';

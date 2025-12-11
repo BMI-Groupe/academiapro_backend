@@ -20,6 +20,7 @@ class TeacherResource extends JsonResource
 			'first_name' => $this->first_name,
 			'last_name' => $this->last_name,
 			'phone' => $this->phone,
+			'email' => $this->email,
 			'specialization' => $this->specialization,
 			'birth_date' => $this->birth_date,
 			'classrooms' => $this->whenLoaded('classroomSubjectTeachers', function () {
@@ -41,6 +42,7 @@ class TeacherResource extends JsonResource
 					] : null;
 				})->filter()->unique('id')->values();
 			}),
+            'classroom_subject_teachers' => $this->whenLoaded('classroomSubjectTeachers'),
 			'created_at' => $this->created_at,
 			'updated_at' => $this->updated_at,
 		];

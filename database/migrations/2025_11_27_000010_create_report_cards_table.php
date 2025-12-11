@@ -15,6 +15,8 @@ return new class extends Migration
             $table->foreignId('classroom_id')->constrained('classrooms')->onDelete('cascade');
             $table->decimal('average', 5, 2)->nullable();
             $table->integer('rank')->nullable();
+            $table->integer('period')->nullable();
+            $table->integer('absences')->default(0);
             $table->text('comments')->nullable();
             $table->timestamp('generated_at')->nullable();
             $table->timestamps();

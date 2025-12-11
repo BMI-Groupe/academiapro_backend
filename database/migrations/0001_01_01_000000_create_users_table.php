@@ -18,7 +18,11 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
-            $table->enum('role', ['admin', 'director', 'teacher', 'parent'])->default('director');
+            $table->string('role')->default('directeur');
+            // Modifications consolidées
+            $table->foreignId('school_id')->nullable()->constrained('schools')->onDelete('cascade');
+            $table->string('profile_photo_path', 2048)->nullable();
+            
             $table->string('phone', 30)->nullable()->unique();
             $table->timestamps();
         });

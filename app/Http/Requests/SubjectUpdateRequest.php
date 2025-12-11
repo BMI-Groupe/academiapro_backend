@@ -32,6 +32,7 @@ class SubjectUpdateRequest extends FormRequest
 				Rule::unique('subjects', 'code')->ignore($this->route('subject')?->id),
 			],
 			'coefficient' => 'required|numeric|min:0|max:10',
+            'school_year_id' => 'nullable|exists:school_years,id',
 		];
 	}
 

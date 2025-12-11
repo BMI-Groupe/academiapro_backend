@@ -11,8 +11,8 @@ class AssignmentStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Seul le directeur peut créer des devoirs
-        return $this->user() && $this->user()->role === 'directeur';
+        // Seuls le directeur et l'admin peuvent créer des devoirs
+        return $this->user() && in_array($this->user()->role, ['admin', 'directeur']);
     }
 
     public function rules(): array
@@ -28,6 +28,8 @@ class AssignmentStoreRequest extends FormRequest
             'due_date' => ['required', 'date'],
             'classroom_id' => ['required', 'exists:classrooms,id', new RequiresActiveSchoolYear()],
             'subject_id' => ['nullable', 'exists:subjects,id'],
+            'school_id' => ['nullable', 'exists:schools,id'],
+            'period' => ['nullable', 'integer', 'in:1,2,3'],
         ];
     }
 
@@ -44,7 +46,7 @@ class AssignmentStoreRequest extends FormRequest
     {
         throw new HttpResponseException(response()->json([
             'success' => false,
-            'message' => 'Seul le directeur peut créer des devoirs.',
+            'message' => 'Vous n\'êtes pas autorisé à créer des devoirs.',
             'data' => null
         ], 403));
     }

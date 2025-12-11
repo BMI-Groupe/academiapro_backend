@@ -1,0 +1,62 @@
+=== RAPPORT COMPLET DES DONNÉES ===
+
+📊 STATISTIQUES GLOBALES:
+  Écoles: 3
+  Années scolaires: 2
+  Classes (total): 27
+  Étudiants (pool): 400
+  Enseignants: 30
+  Matières: 10
+  Inscriptions: 539
+  Paiements: 1046
+  Emplois du temps (créneaux): 279
+  Types d'évaluation: 6
+  Devoirs/Examens: 1071
+  Notes: 13552
+
+🏫 ÉCOLES:
+  - Groupe Scolaire Excellence
+    📍 123 Avenue de l'Éducation, Dakar
+    📞 221 33 123 45 67
+
+  - Collège Privé La Réussite
+    📍 45 Rue des Savoirs, Thiès
+    📞 221 33 987 65 43
+
+  - Lycée Moderne Avenir
+    📍 78 Boulevard du Progrès, Saint-Louis
+    📞 221 33 456 78 90
+
+📅 ANNÉES SCOLAIRES:
+  - 2023-2024 (inactive)
+    Classes: 14
+    Inscriptions: 280
+    Paiements: 540
+    Devoirs/Examens: 562
+    Montant total: 12,490,098 FCFA
+
+  - 2024-2025 (ACTIVE)
+    Classes: 13
+    Inscriptions: 259
+    Paiements: 506
+    Devoirs/Examens: 509
+    Montant total: 11,373,436 FCFA
+
+📝 TYPES D'ÉVALUATION:
+  - Contrôle Continu (Poids: 0.30)
+  - Devoir Surveillé (Poids: 0.30)
+  - Examen Final (Poids: 0.40)
+  - Contrôle Continu (Poids: 0.30)
+  - Devoir Surveillé (Poids: 0.30)
+  - Examen Final (Poids: 0.40)
+
+💰 STATISTIQUES PAIEMENTS:
+  Total paiements: 1046
+  Montant total encaissé: 23 863 534 FCFA
+
+📚 STATISTIQUES ACADÉMIQUES:
+  Total devoirs/examens: 1071
+  Total notes attribuées: 13552
+  Moyenne générale: 10.02/20
+
+✅ Vérification terminée!

@@ -37,13 +37,27 @@ class ScheduleController extends Controller
 
 	public function store(ScheduleStoreRequest $request)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
 		DB::beginTransaction();
 		try {
-			$schedule = $this->schedules->store($request->validated());
+            $data = $request->validated();
+            
+            if (!isset($data['school_id'])) {
+                $user = Auth::user();
+                if ($user && $user->school_id) {
+                    $data['school_id'] = $user->school_id;
+                } else {
+                     $firstSchool = \App\Models\School::first();
+                     if ($firstSchool) {
+                         $data['school_id'] = $firstSchool->id;
+                     }
+                }
+            }
+
+			$schedule = $this->schedules->store($data);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new ScheduleResource($schedule)], 'Emploi du temps créé.', 201);
 		} catch (\Throwable $th) {
@@ -58,7 +72,7 @@ class ScheduleController extends Controller
 
 	public function update(ScheduleUpdateRequest $request, Schedule $schedule)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 
@@ -74,7 +88,7 @@ class ScheduleController extends Controller
 
 	public function destroy(Schedule $schedule)
 	{
-		if (Auth::user()->role !== 'directeur') {
+		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
 		}
 

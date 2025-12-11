@@ -11,6 +11,7 @@ use App\Models\SchoolYear;
 use App\Models\Classroom;
 use App\Models\Subject;
 use App\Models\ClassroomSubject;
+use App\Models\Enrollment;
 
 class InitialDataSeeder extends Seeder
 {
@@ -24,8 +25,18 @@ class InitialDataSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create active school year
+        // Create a default school
+        $school = \App\Models\School::create([
+            'name' => 'École Principale',
+            'address' => '123 Rue de l\'École',
+            'phone' => '600000000',
+            'email' => 'contact@ecole-principale.com',
+            'is_active' => true,
+        ]);
+
+        // Create active school year for this school
         $schoolYear = SchoolYear::create([
+            'school_id' => $school->id,
             'year_start' => 2024,
             'year_end' => 2025,
             'label' => '2024-2025',
@@ -34,13 +45,23 @@ class InitialDataSeeder extends Seeder
             'end_date' => '2025-06-30',
         ]);
 
-        // Create a director user
+        // Create a director user for this school
         $director = User::create([
             'name' => 'Directeur Principal',
             'email' => 'directeur@example.com',
             'phone' => '600000001',
             'password' => Hash::make('password'),
             'role' => User::ROLE_DIRECTOR,
+            'school_id' => $school->id,
+        ]);
+
+        // Create an global admin user (no school_id needed, or can be null)
+        $admin = User::create([
+            'name' => 'Administrateur',
+            'email' => 'admin@example.com',
+            'phone' => '600000000',
+            'password' => Hash::make('password'),
+            'role' => User::ROLE_ADMIN,
         ]);
 
         // Create a teacher user and teacher record
@@ -50,9 +71,11 @@ class InitialDataSeeder extends Seeder
             'phone' => '600000002',
             'password' => Hash::make('password'),
             'role' => User::ROLE_TEACHER,
+            'school_id' => $school->id,
         ]);
 
         Teacher::create([
+            'school_id' => $school->id,
             'user_id' => $teacherUser->id,
             'first_name' => 'Jean',
             'last_name' => 'Dupont',
@@ -63,31 +86,40 @@ class InitialDataSeeder extends Seeder
 
         // Create sample classrooms
         $classroom6A = Classroom::create([
+            'school_id' => $school->id,
             'name' => '6ème A',
             'code' => '6A',
             'cycle' => 'college',
             'level' => '6eme',
+            'school_year_id' => $schoolYear->id,
+            'tuition_fee' => 50000,
         ]);
 
         $classroom5B = Classroom::create([
+            'school_id' => $school->id,
             'name' => '5ème B',
             'code' => '5B',
             'cycle' => 'college',
             'level' => '5eme',
+            'school_year_id' => $schoolYear->id,
+            'tuition_fee' => 55000,
         ]);
 
         // Create sample subjects
         $math = Subject::create([
+            'school_id' => $school->id,
             'name' => 'Mathématiques',
             'code' => 'MATH',
         ]);
 
         $french = Subject::create([
+            'school_id' => $school->id,
             'name' => 'Français',
             'code' => 'FR',
         ]);
 
         // Associate subjects with classrooms for the school year
+        // Note: ClassroomSubject is a pivot, no direct school_id, it relies on classroom/subject school_id consistency
         ClassroomSubject::create([
             'classroom_id' => $classroom6A->id,
             'subject_id' => $math->id,
@@ -117,7 +149,8 @@ class InitialDataSeeder extends Seeder
         ]);
 
         // Create sample students
-        Student::create([
+        $alice = Student::create([
+            'school_id' => $school->id,
             'first_name' => 'Alice',
             'last_name' => 'Martin',
             'matricule' => 'STU0001',
@@ -126,13 +159,29 @@ class InitialDataSeeder extends Seeder
             'address' => 'Rue A, Ville',
         ]);
 
-        Student::create([
+        $paul = Student::create([
+            'school_id' => $school->id,
             'first_name' => 'Paul',
             'last_name' => 'Bernard',
             'matricule' => 'STU0002',
             'birth_date' => '2009-07-22',
             'gender' => 'M',
             'address' => 'Rue B, Ville',
+        ]);
+
+        // Enroll students in classrooms
+        Enrollment::create([
+            'student_id' => $alice->id,
+            'classroom_id' => $classroom6A->id,
+            'school_year_id' => $schoolYear->id,
+            'enrolled_at' => '2024-09-05',
+        ]);
+
+        Enrollment::create([
+            'student_id' => $paul->id,
+            'classroom_id' => $classroom5B->id,
+            'school_year_id' => $schoolYear->id,
+            'enrolled_at' => '2024-09-06',
         ]);
     }
 }
