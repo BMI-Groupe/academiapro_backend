@@ -26,8 +26,12 @@ class AssignmentUpdateRequest extends FormRequest
             'total_score' => ['nullable', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
-            'classroom_id' => ['nullable', 'exists:classrooms,id'],
+            'section_id' => ['nullable', 'exists:sections,id'],
+            'classroom_id' => ['nullable'], // Alias pour compatibilité frontend
             'subject_id' => ['nullable', 'exists:subjects,id'],
+            'apply_to_all_sections' => ['nullable', 'boolean'], // Si true, créer pour toutes les sections
+            'apply_to_all_subjects' => ['nullable', 'boolean'], // Si true, s'applique à toutes les matières
+            'school_year_id' => ['nullable', 'exists:school_years,id'],
             'period' => ['nullable', 'integer', 'in:1,2,3'],
         ];
     }

@@ -23,7 +23,7 @@ class CalculateRanksJob implements ShouldQueue
      */
     public function __construct(
         public int $schoolYearId,
-        public int $classroomId,
+        public int $sectionId,
         public ?int $period = null // null = annual, 1/2/3 = trimester
     ) {}
 
@@ -33,10 +33,10 @@ class CalculateRanksJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            // Get all report cards for this classroom, school year, and term
+            // Get all report cards for this section, school year, and term
             // Order by average descending
             $reportCards = ReportCard::where('school_year_id', $this->schoolYearId)
-                ->where('classroom_id', $this->classroomId)
+                ->where('section_id', $this->sectionId)
                 ->where('period', $this->period)
                 ->orderByDesc('average')
                 ->get();
@@ -44,7 +44,7 @@ class CalculateRanksJob implements ShouldQueue
             if ($reportCards->isEmpty()) {
                 Log::info("No report cards found for ranking", [
                     'school_year_id' => $this->schoolYearId,
-                    'classroom_id' => $this->classroomId,
+                    'section_id' => $this->sectionId,
                     'period' => $this->period
                 ]);
                 return;
@@ -72,7 +72,7 @@ class CalculateRanksJob implements ShouldQueue
 
             Log::info("Ranks calculated successfully", [
                 'school_year_id' => $this->schoolYearId,
-                'classroom_id' => $this->classroomId,
+                'section_id' => $this->sectionId,
                 'period' => $this->period,
                 'total_students' => $reportCards->count()
             ]);
@@ -80,7 +80,7 @@ class CalculateRanksJob implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('CalculateRanksJob Error: ' . $e->getMessage(), [
                 'school_year_id' => $this->schoolYearId,
-                'classroom_id' => $this->classroomId,
+                'section_id' => $this->sectionId,
                 'period' => $this->period,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -95,7 +95,7 @@ class CalculateRanksJob implements ShouldQueue
     {
         Log::error('CalculateRanksJob failed permanently', [
             'school_year_id' => $this->schoolYearId,
-            'classroom_id' => $this->classroomId,
+            'section_id' => $this->sectionId,
             'period' => $this->period,
             'error' => $exception->getMessage()
         ]);

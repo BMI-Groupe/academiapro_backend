@@ -18,7 +18,7 @@ class ClassroomEnrollRequest extends FormRequest
 		return [
 			'student_ids' => 'required|array|min:1',
 			'student_ids.*' => 'integer|exists:students,id',
-			'school_year' => 'required|string|max:20',
+			'school_year_id' => 'required|integer|exists:school_years,id',
 			'enrolled_at' => 'nullable|date',
 		];
 	}

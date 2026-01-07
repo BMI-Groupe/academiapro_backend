@@ -31,7 +31,8 @@ class StudentController extends Controller
 			'search' => $request->query('search'),
 			'per_page' => $request->query('per_page'),
 			'school_year_id' => $request->query('school_year_id'),
-			'classroom_id' => $request->query('classroom_id'),
+			'section_id' => $request->query('section_id') ?? $request->query('classroom_id'), // Support les deux pour compatibilité
+			'classroom_id' => $request->query('classroom_id'), // Alias pour compatibilité
 		];
 
 		$data = $this->students->paginate($filters)->through(fn ($s) => new StudentResource($s));
@@ -47,6 +48,14 @@ class StudentController extends Controller
 		DB::beginTransaction();
 		try {
             $data = $request->validated();
+            
+            // Utiliser section_id si présent, sinon classroom_id (compatibilité)
+            if (isset($data['section_id'])) {
+                $data['section_id'] = $data['section_id'];
+            } elseif (isset($data['classroom_id'])) {
+                $data['section_id'] = $data['classroom_id'];
+                unset($data['classroom_id']);
+            }
             
             if (!isset($data['school_id'])) {
                 $user = Auth::user();
@@ -70,7 +79,7 @@ class StudentController extends Controller
 
 	public function show(Student $student)
 	{
-		return ApiResponse::sendResponse(true, [new StudentResource($student->load('enrollments.classroom.subjects'))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new StudentResource($student->load('enrollments.section.classroomTemplate', 'enrollments.section.subjects'))], 'Opération effectuée.', 200);
 	}
 
 	public function update(StudentUpdateRequest $request, Student $student)
@@ -110,7 +119,7 @@ class StudentController extends Controller
 	 */
 	public function profile(Student $student)
 	{
-		$student->load(['enrollments.classroom']);
+		$student->load(['enrollments.section.classroomTemplate']);
 		
 		// Get all school years the student has been enrolled in
 		$schoolYears = DB::table('grades')
@@ -164,14 +173,14 @@ class StudentController extends Controller
             ->where('school_year_id', $schoolYearId)
             ->first();
             
-		$classroomId = $enrollment ? $enrollment->classroom_id : null;
+		$sectionId = $enrollment ? $enrollment->section_id : null;
 
-		if ($classroomId) {
+		if ($sectionId) {
 			$studentsAverages = DB::table('grades')
 				->join('assignments', 'grades.assignment_id', '=', 'assignments.id')
 				->join('students', 'grades.student_id', '=', 'students.id')
                 ->join('enrollments', 'students.id', '=', 'enrollments.student_id')
-				->where('enrollments.classroom_id', $classroomId)
+				->where('enrollments.section_id', $sectionId)
                 ->where('enrollments.school_year_id', $schoolYearId)
 				->where('assignments.school_year_id', $schoolYearId)
 				->select('students.id', DB::raw('AVG(grades.score) as avg_score'))

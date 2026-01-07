@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'huggingface' => [
+        'api_token' => env('HUGGINGFACE_API_TOKEN'),
+        'model' => env('HUGGINGFACE_MODEL', 'meta-llama/Llama-2-7b-chat-hf'),
+    ],
+
 ];

@@ -24,7 +24,8 @@ class ScheduleController extends Controller
 	public function index(Request $request)
 	{
 		$filters = [
-			'classroom_id' => $request->query('classroom_id'),
+			'classroom_id' => $request->query('classroom_id') ?? $request->query('section_id'), // Support les deux pour compatibilité
+			'section_id' => $request->query('section_id') ?? $request->query('classroom_id'),
 			'teacher_id' => $request->query('teacher_id'),
 			'school_year_id' => $request->query('school_year_id'),
 			'day_of_week' => $request->query('day_of_week'),
@@ -44,6 +45,14 @@ class ScheduleController extends Controller
 		DB::beginTransaction();
 		try {
             $data = $request->validated();
+            
+            // Utiliser section_id si présent, sinon classroom_id (compatibilité)
+            if (isset($data['section_id'])) {
+                $data['section_id'] = $data['section_id'];
+            } elseif (isset($data['classroom_id'])) {
+                $data['section_id'] = $data['classroom_id'];
+                unset($data['classroom_id']);
+            }
             
             if (!isset($data['school_id'])) {
                 $user = Auth::user();
@@ -67,7 +76,7 @@ class ScheduleController extends Controller
 
 	public function show(Schedule $schedule)
 	{
-		return ApiResponse::sendResponse(true, [new ScheduleResource($schedule->load(['classroom', 'subject', 'teacher', 'schoolYear']))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new ScheduleResource($schedule->load(['section.classroomTemplate', 'subject', 'teacher', 'schoolYear']))], 'Opération effectuée.', 200);
 	}
 
 	public function update(ScheduleUpdateRequest $request, Schedule $schedule)
@@ -78,7 +87,15 @@ class ScheduleController extends Controller
 
 		DB::beginTransaction();
 		try {
-			$schedule = $this->schedules->update($schedule, $request->validated());
+			$data = $request->validated();
+			// Utiliser section_id si présent, sinon classroom_id (compatibilité)
+			if (isset($data['section_id'])) {
+				$data['section_id'] = $data['section_id'];
+			} elseif (isset($data['classroom_id'])) {
+				$data['section_id'] = $data['classroom_id'];
+				unset($data['classroom_id']);
+			}
+			$schedule = $this->schedules->update($schedule, $data);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new ScheduleResource($schedule)], 'Emploi du temps mis à jour.', 200);
 		} catch (\Throwable $th) {

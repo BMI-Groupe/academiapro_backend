@@ -18,7 +18,7 @@ class SchoolYearStoreRequest extends FormRequest
 		return [
 			'year_start' => 'required|numeric|digits:4|min:2000',
 			'year_end' => 'required|numeric|digits:4|gt:year_start',
-			'label' => 'required|string|max:100|unique:school_years,label',
+			'label' => 'nullable|string|max:100|unique:school_years,label',
 			'is_active' => 'nullable|boolean',
 			'start_date' => 'nullable|date',
 			'end_date' => 'nullable|date|after_or_equal:start_date',

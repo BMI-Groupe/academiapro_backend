@@ -13,7 +13,8 @@ class ReportCard extends Model
     protected $fillable = [
         'student_id',
         'school_year_id',
-        'classroom_id',
+        'section_id',
+        'assignment_id', // ID du devoir/examen pour les bulletins individuels
         'period', // 1, 2 for semesters OR 1, 2, 3 for trimesters, null for annual
         'average',
         'rank',
@@ -25,7 +26,7 @@ class ReportCard extends Model
     protected $casts = [
         'average' => 'decimal:2',
         'generated_at' => 'datetime',
-        'period' => 'integer',
+        'period' => 'integer', // Can be null for annual report cards
         'absences' => 'integer',
     ];
 
@@ -67,8 +68,19 @@ class ReportCard extends Model
         return $this->belongsTo(SchoolYear::class);
     }
 
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    // Alias pour compatibilité (à supprimer progressivement)
     public function classroom(): BelongsTo
     {
-        return $this->belongsTo(Classroom::class);
+        return $this->belongsTo(Section::class, 'section_id');
+    }
+
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Assignment::class);
     }
 }

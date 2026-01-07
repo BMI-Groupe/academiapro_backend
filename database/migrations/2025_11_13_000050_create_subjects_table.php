@@ -15,7 +15,7 @@ return new class extends Migration
 			$table->string('code', 50);
             $table->foreignId('school_year_id')->nullable()->constrained()->onDelete('cascade');
             $table->integer('coefficient')->default(1);
-            $table->unique(['school_id', 'code']);
+            $table->unique(['school_id', 'code', 'school_year_id'], 'subjects_school_code_year_unique');
 			$table->timestamps();
 		});
 	}

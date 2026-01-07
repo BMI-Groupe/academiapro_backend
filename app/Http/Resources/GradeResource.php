@@ -37,7 +37,8 @@ class GradeResource extends JsonResource
 					'max_score' => $this->assignment->max_score,
 					'passing_score' => $this->assignment->passing_score,
 					'total_score' => $this->assignment->total_score,
-					'classroom_id' => $this->assignment->classroom_id,
+					'classroom_id' => $this->assignment->section_id, // Alias pour compatibilité frontend
+					'section_id' => $this->assignment->section_id,
 					'subject_id' => $this->assignment->subject_id,
 					'school_year_id' => $this->assignment->school_year_id,
 					'subject' => $this->when($this->assignment->relationLoaded('subject') && $this->assignment->subject, function () {
@@ -47,11 +48,19 @@ class GradeResource extends JsonResource
 							'code' => $this->assignment->subject->code,
 						];
 					}),
-					'classroom' => $this->when($this->assignment->relationLoaded('classroom') && $this->assignment->classroom, function () {
+					'classroom' => $this->when($this->assignment->relationLoaded('section') && $this->assignment->section, function () {
+						$section = $this->assignment->section;
 						return [
-							'id' => $this->assignment->classroom->id,
-							'name' => $this->assignment->classroom->name,
-							'code' => $this->assignment->classroom->code,
+							'id' => $section->id,
+							'name' => $section->display_name ?? $section->name ?? ($section->classroomTemplate ? $section->classroomTemplate->name : null),
+							'code' => $section->code,
+						];
+					}),
+					'section' => $this->when($this->assignment->relationLoaded('section') && $this->assignment->section, function () {
+						return [
+							'id' => $this->assignment->section->id,
+							'name' => $this->assignment->section->display_name ?? $this->assignment->section->name,
+							'code' => $this->assignment->section->code,
 						];
 					}),
 					'schoolYear' => $this->when($this->assignment->relationLoaded('schoolYear') && $this->assignment->schoolYear, function () {

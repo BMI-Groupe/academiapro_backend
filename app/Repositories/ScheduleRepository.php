@@ -11,10 +11,11 @@ class ScheduleRepository implements ScheduleInterface
 	public function paginate(array $filters = []): LengthAwarePaginator
 	{
 		$query = Schedule::query()
-			->with(['classroom', 'subject', 'teacher', 'schoolYear']);
+			->with(['section.classroomTemplate', 'subject', 'teacher', 'schoolYear']);
 
-		if (!empty($filters['classroom_id'])) {
-			$query->where('classroom_id', $filters['classroom_id']);
+		if (!empty($filters['classroom_id']) || !empty($filters['section_id'])) {
+			$sectionId = $filters['section_id'] ?? $filters['classroom_id'];
+			$query->where('section_id', $sectionId);
 		}
 
 		if (!empty($filters['teacher_id'])) {
@@ -36,13 +37,13 @@ class ScheduleRepository implements ScheduleInterface
 
 	public function store(array $data): Schedule
 	{
-		return Schedule::create($data)->load(['classroom', 'subject', 'teacher', 'schoolYear']);
+		return Schedule::create($data)->load(['section.classroomTemplate', 'subject', 'teacher', 'schoolYear']);
 	}
 
 	public function update(Schedule $schedule, array $data): Schedule
 	{
 		$schedule->update($data);
-		return $schedule->fresh()->load(['classroom', 'subject', 'teacher', 'schoolYear']);
+		return $schedule->fresh()->load(['section.classroomTemplate', 'subject', 'teacher', 'schoolYear']);
 	}
 
 	public function delete(Schedule $schedule): void
@@ -50,12 +51,12 @@ class ScheduleRepository implements ScheduleInterface
 		$schedule->delete();
 	}
 
-	public function getByClassroom(int $classroomId, int $schoolYearId): LengthAwarePaginator
+	public function getByClassroom(int $sectionId, int $schoolYearId): LengthAwarePaginator
 	{
 		return Schedule::query()
-			->where('classroom_id', $classroomId)
+			->where('section_id', $sectionId)
 			->where('school_year_id', $schoolYearId)
-			->with(['subject', 'teacher'])
+			->with(['subject', 'teacher', 'section.classroomTemplate'])
 			->orderBy('day_of_week')
 			->orderBy('start_time')
 			->paginate(50);
@@ -66,7 +67,7 @@ class ScheduleRepository implements ScheduleInterface
 		return Schedule::query()
 			->where('teacher_id', $teacherId)
 			->where('school_year_id', $schoolYearId)
-			->with(['classroom', 'subject'])
+			->with(['section.classroomTemplate', 'subject'])
 			->orderBy('day_of_week')
 			->orderBy('start_time')
 			->paginate(50);

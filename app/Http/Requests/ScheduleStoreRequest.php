@@ -16,7 +16,8 @@ class ScheduleStoreRequest extends FormRequest
 	public function rules(): array
 	{
 		return [
-			'classroom_id' => 'required|exists:classrooms,id',
+			'section_id' => 'required_without:classroom_id|exists:sections,id',
+			'classroom_id' => 'required_without:section_id|exists:sections,id', // Accepte classroom_id comme alias de section_id
 			'subject_id' => 'required|exists:subjects,id',
 			'teacher_id' => 'required|exists:teachers,id',
 			'school_year_id' => 'required|exists:school_years,id',

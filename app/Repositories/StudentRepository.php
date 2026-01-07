@@ -10,7 +10,7 @@ class StudentRepository implements StudentInterface
 {
 	public function paginate(array $filters = []): LengthAwarePaginator
 	{
-		$query = Student::query()->with('enrollments.classroom');
+		$query = Student::query()->with('enrollments.section.classroomTemplate');
 
 		if (!empty($filters['search'])) {
 			$search = $filters['search'];
@@ -22,14 +22,16 @@ class StudentRepository implements StudentInterface
 		}
 
 		if (!empty($filters['school_year_id'])) {
-			$query->whereHas('enrollments', function ($q) use ($filters) {
-				$q->where('school_year_id', $filters['school_year_id']);
+			// Inclure uniquement les élèves inscrits pour cette année scolaire
+			$query->whereHas('enrollments', function ($eq) use ($filters) {
+				$eq->where('school_year_id', $filters['school_year_id']);
 			});
 		}
 
-		if (!empty($filters['classroom_id'])) {
-			$query->whereHas('enrollments', function ($q) use ($filters) {
-				$q->where('classroom_id', $filters['classroom_id']);
+		if (!empty($filters['classroom_id']) || !empty($filters['section_id'])) {
+			$sectionId = $filters['section_id'] ?? $filters['classroom_id'];
+			$query->whereHas('enrollments', function ($q) use ($sectionId) {
+				$q->where('section_id', $sectionId);
 			});
 		}
 
@@ -40,8 +42,9 @@ class StudentRepository implements StudentInterface
 	{
 		$student = Student::create($data);
 
-		// Inscription automatique si classroom_id est présent
-		if (!empty($data['classroom_id'])) {
+		// Inscription automatique si section_id (ou classroom_id pour compatibilité) est présent
+		$sectionId = $data['section_id'] ?? $data['classroom_id'] ?? null;
+		if ($sectionId) {
 			$schoolYearId = $data['school_year_id'] ?? null;
 			
 			if (!$schoolYearId) {
@@ -55,14 +58,15 @@ class StudentRepository implements StudentInterface
 			if ($schoolYearId) {
 				\App\Models\Enrollment::create([
 					'student_id' => $student->id,
-					'classroom_id' => $data['classroom_id'],
+					'section_id' => $sectionId,
 					'school_year_id' => $schoolYearId,
 					'enrolled_at' => now(),
+					'status' => 'active',
 				]);
 			}
 		}
 
-		return $student->load('enrollments.classroom.subjects');
+		return $student->load('enrollments.section.classroomTemplate', 'enrollments.section.subjects');
 	}
 
 	public function update(Student $student, array $data): Student

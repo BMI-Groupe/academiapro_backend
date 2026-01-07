@@ -12,9 +12,10 @@ class Enrollment extends Model
 
 	protected $fillable = [
 		'student_id',
-		'classroom_id',
+		'section_id',
 		'school_year_id',
 		'enrolled_at',
+		'status',
 	];
 
     protected $casts = [
@@ -26,15 +27,21 @@ class Enrollment extends Model
 		return $this->belongsTo(Student::class);
 	}
 
-	public function classroom(): BelongsTo
+	public function section(): BelongsTo
 	{
-		return $this->belongsTo(Classroom::class);
+		return $this->belongsTo(Section::class);
 	}
 
     public function schoolYear(): BelongsTo
     {
         return $this->belongsTo(SchoolYear::class);
     }
+
+	// Alias pour compatibilité (à supprimer progressivement)
+	public function classroom(): BelongsTo
+	{
+		return $this->belongsTo(Section::class, 'section_id');
+	}
 }
 
 

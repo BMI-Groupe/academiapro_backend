@@ -29,9 +29,11 @@ class GradeController extends Controller
 	public function index(Request $request)
 	{
 		$filters = [
+			'search' => $request->query('search'),
 			'student_id' => $request->query('student_id'),
 			'subject_id' => $request->query('subject_id'),
-			'classroom_id' => $request->query('classroom_id'),
+			'classroom_id' => $request->query('classroom_id') ?? $request->query('section_id'), // Support les deux pour compatibilité
+			'section_id' => $request->query('section_id') ?? $request->query('classroom_id'),
 			'school_year_id' => $request->query('school_year_id'),
 			'assignment_type' => $request->query('assignment_type'),
 			'per_page' => $request->query('per_page'),
@@ -79,7 +81,7 @@ class GradeController extends Controller
 
 	public function show(Grade $grade)
 	{
-		return ApiResponse::sendResponse(true, [new GradeResource($grade->load(['student', 'assignment.subject', 'assignment.classroom', 'assignment.schoolYear', 'grader']))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new GradeResource($grade->load(['student', 'assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear', 'grader']))], 'Opération effectuée.', 200);
 	}
 
 	public function update(GradeUpdateRequest $request, Grade $grade)

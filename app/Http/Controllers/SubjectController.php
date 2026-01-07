@@ -57,7 +57,21 @@ class SubjectController extends Controller
 
 			$subject = $this->subjects->store($data);
 			DB::commit();
-			return ApiResponse::sendResponse(true, [new SubjectResource($subject)], 'Matière créée.', 201);
+			
+			$message = 'Matière créée.';
+			$warning = null;
+			
+			// Avertir si school_year_id n'est pas renseigné
+			if (empty($data['school_year_id'])) {
+				$warning = 'Attention : Aucune année scolaire n\'a été renseignée. Cette matière pourra être utilisée pour toutes les années, mais certains calculs (moyennes, bulletins, classements) pourraient ne pas fonctionner correctement. Il est recommandé de renseigner une année scolaire.';
+			}
+			
+			$responseData = [
+				new SubjectResource($subject),
+				'warning' => $warning
+			];
+			
+			return ApiResponse::sendResponse(true, $responseData, $message, 201);
 		} catch (\Throwable $th) {
 			return ApiResponse::rollback($th);
 		}
@@ -76,9 +90,24 @@ class SubjectController extends Controller
 
 		DB::beginTransaction();
 		try {
-			$subject = $this->subjects->update($subject, $request->validated());
+			$data = $request->validated();
+			$subject = $this->subjects->update($subject, $data);
 			DB::commit();
-			return ApiResponse::sendResponse(true, [new SubjectResource($subject)], 'Matière mise à jour.', 200);
+			
+			$message = 'Matière mise à jour.';
+			$warning = null;
+			
+			// Avertir si school_year_id n'est pas renseigné
+			if (empty($data['school_year_id'])) {
+				$warning = 'Attention : Aucune année scolaire n\'a été renseignée. Cette matière pourra être utilisée pour toutes les années, mais certains calculs (moyennes, bulletins, classements) pourraient ne pas fonctionner correctement. Il est recommandé de renseigner une année scolaire.';
+			}
+			
+			$responseData = [
+				new SubjectResource($subject),
+				'warning' => $warning
+			];
+			
+			return ApiResponse::sendResponse(true, $responseData, $message, 200);
 		} catch (\Throwable $th) {
 			return ApiResponse::rollback($th);
 		}

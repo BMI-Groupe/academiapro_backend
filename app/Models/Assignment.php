@@ -23,7 +23,7 @@ class Assignment extends Model
         'total_score',
         'start_date',
         'due_date',
-        'classroom_id',
+        'section_id',
         'subject_id',
         'school_year_id',
         'period', // 1, 2 for semesters OR 1, 2, 3 for trimesters
@@ -39,9 +39,15 @@ class Assignment extends Model
         'period' => 'integer',
     ];
 
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    // Alias pour compatibilité (à supprimer progressivement)
     public function classroom(): BelongsTo
     {
-        return $this->belongsTo(Classroom::class);
+        return $this->belongsTo(Section::class, 'section_id');
     }
 
     public function subject(): BelongsTo

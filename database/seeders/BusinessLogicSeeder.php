@@ -3,9 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\Assignment;
-use App\Models\Classroom;
-use App\Models\ClassroomSubject;
-use App\Models\ClassroomSubjectTeacher;
+use App\Models\ClassroomTemplate;
+use App\Models\Section;
+use App\Models\SectionSubject;
+use App\Models\SectionSubjectTeacher;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\ReportCard;
@@ -34,31 +35,50 @@ class BusinessLogicSeeder extends Seeder
             ]);
             $this->command->info('Active Year Created: ' . $year->label);
 
-            // 2. Create Class & Subject
-            $classroom = Classroom::create([
+            // 2. Create Classroom Template & Section & Subject
+            $school = \App\Models\School::first();
+            $template = ClassroomTemplate::firstOrCreate(
+                [
+                    'school_id' => $school->id,
+                    'code' => '6EME',
+                ],
+                [
+                    'name' => '6ème',
+                    'cycle' => 'college',
+                    'level' => '6eme',
+                    'tuition_fee' => 50000,
+                    'is_active' => true,
+                ]
+            );
+
+            $section = Section::create([
+                'classroom_template_id' => $template->id,
+                'school_year_id' => $year->id,
+                'school_id' => $school->id,
                 'name' => '6ème A',
-                'code' => '6A',
-                'cycle' => 'college',
-                'level' => '6eme',
+                'code' => '6EME-A-2023-2024',
+                'is_active' => true,
             ]);
-            $this->command->info('Classroom Created: ' . $classroom->name);
+            $this->command->info('Section Created: ' . $section->name);
 
             $math = Subject::create(['name' => 'Mathématiques', 'code' => 'MATH']);
             $fr = Subject::create(['name' => 'Français', 'code' => 'FR']);
             $this->command->info('Subjects Created');
 
-            // 3. Assign Subject to Class (with coeff)
-            $clsMath = ClassroomSubject::create([
-                'classroom_id' => $classroom->id,
+            // 3. Assign Subject to Section (with coeff)
+            $sectionMath = SectionSubject::create([
+                'section_id' => $section->id,
                 'subject_id' => $math->id,
+                'school_year_id' => $year->id,
                 'coefficient' => 5,
             ]);
-            $clsFr = ClassroomSubject::create([
-                'classroom_id' => $classroom->id,
+            $sectionFr = SectionSubject::create([
+                'section_id' => $section->id,
                 'subject_id' => $fr->id,
+                'school_year_id' => $year->id,
                 'coefficient' => 4,
             ]);
-            $this->command->info('Subjects Assigned to Class with Coefficients');
+            $this->command->info('Subjects Assigned to Section with Coefficients');
 
             // 4. Create Student & Enroll
             $studentUser = User::create([
@@ -77,9 +97,10 @@ class BusinessLogicSeeder extends Seeder
 
             Enrollment::create([
                 'student_id' => $student->id,
-                'classroom_id' => $classroom->id,
+                'section_id' => $section->id,
                 'school_year_id' => $year->id,
                 'enrolled_at' => now(),
+                'status' => 'active',
             ]);
             $this->command->info('Student Created and Enrolled');
 
@@ -97,8 +118,8 @@ class BusinessLogicSeeder extends Seeder
                 'last_name' => 'Math',
             ]);
 
-            ClassroomSubjectTeacher::create([
-                'classroom_subject_id' => $clsMath->id,
+            SectionSubjectTeacher::create([
+                'section_subject_id' => $sectionMath->id,
                 'teacher_id' => $teacher->id,
                 'school_year_id' => $year->id,
             ]);
@@ -120,7 +141,7 @@ class BusinessLogicSeeder extends Seeder
                 'total_score' => 20,
                 'start_date' => now(),
                 'due_date' => now()->addDays(7),
-                'classroom_id' => $classroom->id,
+                'section_id' => $section->id,
                 'school_year_id' => $year->id,
                 'created_by' => $directorUser->id,
             ]);
@@ -128,8 +149,8 @@ class BusinessLogicSeeder extends Seeder
 
             // 7. Teacher enters Grade
             // Verify permission (simulated)
-            $isAssigned = $teacher->classroomSubjectTeachers()
-                ->where('classroom_subject_id', $clsMath->id)
+            $isAssigned = $teacher->sectionSubjectTeachers()
+                ->where('section_subject_id', $sectionMath->id)
                 ->where('school_year_id', $year->id)
                 ->exists();
             

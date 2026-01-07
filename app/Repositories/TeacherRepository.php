@@ -13,7 +13,7 @@ class TeacherRepository implements TeacherInterface
 {
 	public function paginate(array $filters = []): LengthAwarePaginator
 	{
-		$query = Teacher::query()->with(['user', 'classroomSubjectTeachers.classroomSubject.classroom', 'classroomSubjectTeachers.classroomSubject.subject']);
+		$query = Teacher::query()->with(['user', 'sectionSubjectTeachers.sectionSubject.section.classroomTemplate', 'sectionSubjectTeachers.sectionSubject.subject']);
 
 		if (!empty($filters['search'])) {
 			$search = $filters['search'];
@@ -21,12 +21,16 @@ class TeacherRepository implements TeacherInterface
 				$q->where('first_name', 'like', "%{$search}%")
 					->orWhere('last_name', 'like', "%{$search}%")
 					->orWhere('specialization', 'like', "%{$search}%")
-					->orWhere('phone', 'like', "%{$search}%");
+					->orWhere('phone', 'like', "%{$search}%")
+					->orWhere('email', 'like', "%{$search}%")
+					->orWhereHas('user', function ($uq) use ($search) {
+						$uq->where('email', 'like', "%{$search}%");
+					});
 			});
 		}
 
 		if (!empty($filters['school_year_id'])) {
-			$query->whereHas('classroomSubjectTeachers.classroomSubject', function ($q) use ($filters) {
+			$query->whereHas('sectionSubjectTeachers', function ($q) use ($filters) {
 				$q->where('school_year_id', $filters['school_year_id']);
 			});
 		}
@@ -52,13 +56,13 @@ class TeacherRepository implements TeacherInterface
 			$data['user_id'] = $user->id;
 		}
 
-		return Teacher::create($data)->load(['user', 'classroomSubjectTeachers.classroomSubject.classroom', 'classroomSubjectTeachers.classroomSubject.subject']);
+		return Teacher::create($data)->load(['user', 'sectionSubjectTeachers.sectionSubject.section.classroomTemplate', 'sectionSubjectTeachers.sectionSubject.subject']);
 	}
 
 	public function update(Teacher $teacher, array $data): Teacher
 	{
 		$teacher->update($data);
-		return $teacher->fresh()->load(['user', 'classroomSubjectTeachers.classroomSubject.classroom', 'classroomSubjectTeachers.classroomSubject.subject']);
+		return $teacher->fresh()->load(['user', 'sectionSubjectTeachers.sectionSubject.section.classroomTemplate', 'sectionSubjectTeachers.sectionSubject.subject']);
 	}
 
 	public function delete(Teacher $teacher): void

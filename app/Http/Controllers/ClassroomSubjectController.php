@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Classroom;
+use App\Models\Section;
 use App\Models\Subject;
 use App\Models\SchoolYear;
-use App\Models\ClassroomSubject;
+use App\Models\SectionSubject;
 use App\Services\ClassroomSubjectService;
 use App\Responses\ApiResponse;
 use Illuminate\Http\Request;
@@ -21,9 +21,10 @@ class ClassroomSubjectController extends Controller
      * GET /classrooms/{classroom}/subjects?school_year_id=X
      * Obtenir le programme d'une classe pour une année
      */
-    public function index(Request $request, Classroom $classroom)
+    public function index(Request $request, Section $classroom)
     {
         $schoolYearId = $request->get('school_year_id') 
+            ?? $classroom->school_year_id
             ?? SchoolYear::where('is_active', true)->first()?->id;
 
         if (!$schoolYearId) {
@@ -37,9 +38,9 @@ class ClassroomSubjectController extends Controller
     /**
      * POST /classrooms/{classroom}/subjects
      * Body: { subject_id, coefficient, school_year_id? }
-     * Assigner une matière à une classe
+     * Assigner une matière à une section
      */
-    public function store(Request $request, Classroom $classroom)
+    public function store(Request $request, Section $classroom)
     {
         $validated = $request->validate([
             'subject_id' => 'required|exists:subjects,id',
@@ -48,6 +49,7 @@ class ClassroomSubjectController extends Controller
         ]);
 
         $schoolYearId = $validated['school_year_id'] 
+            ?? $classroom->school_year_id
             ?? SchoolYear::where('is_active', true)->first()?->id;
 
         if (!$schoolYearId) {
@@ -75,7 +77,7 @@ class ClassroomSubjectController extends Controller
      * Body: { coefficient, school_year_id? }
      * Mettre à jour le coefficient d'une matière
      */
-    public function update(Request $request, Classroom $classroom, Subject $subject)
+    public function update(Request $request, Section $classroom, Subject $subject)
     {
         $validated = $request->validate([
             'coefficient' => 'required|integer|min:1|max:10',
@@ -83,6 +85,7 @@ class ClassroomSubjectController extends Controller
         ]);
 
         $schoolYearId = $validated['school_year_id'] 
+            ?? $classroom->school_year_id
             ?? SchoolYear::where('is_active', true)->first()?->id;
 
         if (!$schoolYearId) {
@@ -111,11 +114,12 @@ class ClassroomSubjectController extends Controller
 
     /**
      * DELETE /classrooms/{classroom}/subjects/{subject}?school_year_id=X
-     * Retirer une matière d'une classe
+     * Retirer une matière d'une section
      */
-    public function destroy(Request $request, Classroom $classroom, Subject $subject)
+    public function destroy(Request $request, Section $classroom, Subject $subject)
     {
         $schoolYearId = $request->get('school_year_id') 
+            ?? $classroom->school_year_id
             ?? SchoolYear::where('is_active', true)->first()?->id;
 
         if (!$schoolYearId) {
@@ -146,7 +150,7 @@ class ClassroomSubjectController extends Controller
      * Body: { from_year_id, to_year_id }
      * Copier le programme d'une année à une autre
      */
-    public function copy(Request $request, Classroom $classroom)
+    public function copy(Request $request, Section $classroom)
     {
         $validated = $request->validate([
             'from_year_id' => 'required|exists:school_years,id',

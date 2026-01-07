@@ -29,7 +29,21 @@ class SchoolYearController extends Controller
 
     public function active()
     {
-        $year = SchoolYear::active();
+        // Pour les admins, on peut retourner l'année active de n'importe quelle école
+        // Pour les autres, le scope ScopedBySchool filtre automatiquement par school_id
+        $user = auth()->user();
+        
+        if ($user && $user->role === 'admin') {
+            // Admin peut voir l'année active de toutes les écoles
+            // On prend la première année active trouvée (ou celle de l'école de l'utilisateur si définie)
+            $year = $user->school_id 
+                ? SchoolYear::withoutGlobalScopes()->where('is_active', true)->where('school_id', $user->school_id)->first()
+                : SchoolYear::withoutGlobalScopes()->where('is_active', true)->first();
+        } else {
+            // Pour les autres rôles, le scope ScopedBySchool filtre automatiquement
+            $year = SchoolYear::active();
+        }
+        
         if (!$year) {
             return ApiResponse::sendResponse(false, [], 'Aucune année scolaire active trouvée.', 404);
         }
@@ -47,6 +61,11 @@ class SchoolYearController extends Controller
         DB::beginTransaction();
         try {
             $data = $request->validated();
+
+            // Générer automatiquement le label si vide
+            if (empty($data['label']) && isset($data['year_start']) && isset($data['year_end'])) {
+                $data['label'] = $data['year_start'] . '-' . $data['year_end'];
+            }
 
             if (!isset($data['school_id'])) {
                 $user = auth()->user();

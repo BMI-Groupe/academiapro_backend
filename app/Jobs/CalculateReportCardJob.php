@@ -26,7 +26,7 @@ class CalculateReportCardJob implements ShouldQueue
     public function __construct(
         public int $studentId,
         public int $schoolYearId,
-        public int $classroomId,
+        public int $sectionId,
         public ?int $period = null // null = annual, 1/2 = semester, 1/2/3 = trimester
     ) {}
 
@@ -44,10 +44,10 @@ class CalculateReportCardJob implements ShouldQueue
                 return;
             }
 
-            // Get all grades for this student in this school year and classroom
+            // Get all grades for this student in this school year and section
             $gradesQuery = Grade::whereHas('assignment', function ($query) {
                 $query->where('school_year_id', $this->schoolYearId)
-                      ->where('classroom_id', $this->classroomId);
+                      ->where('section_id', $this->sectionId);
                 
                 // Filter by term if specified
                 if ($this->period !== null) {
@@ -57,21 +57,40 @@ class CalculateReportCardJob implements ShouldQueue
 
             $grades = $gradesQuery->with(['assignment.subject'])->get();
 
+            Log::info("CalculateReportCardJob: Checking grades", [
+                'student_id' => $this->studentId,
+                'school_year_id' => $this->schoolYearId,
+                'section_id' => $this->sectionId,
+                'period' => $this->period,
+                'grades_count' => $grades->count()
+            ]);
+
             if ($grades->isEmpty()) {
-                Log::info("No grades found for student {$this->studentId}, term {$this->period}");
+                Log::warning("No grades found for student {$this->studentId}, term {$this->period}", [
+                    'student_id' => $this->studentId,
+                    'school_year_id' => $this->schoolYearId,
+                    'section_id' => $this->sectionId,
+                    'period' => $this->period
+                ]);
                 DB::commit();
                 return;
             }
 
             // Calculate average
             $average = $this->calculateWeightedAverage($grades);
+            
+            Log::info("CalculateReportCardJob: Average calculated", [
+                'student_id' => $this->studentId,
+                'period' => $this->period,
+                'average' => $average
+            ]);
 
             // Update or Create ReportCard
             $reportCard = ReportCard::updateOrCreate(
                 [
                     'student_id' => $this->studentId,
                     'school_year_id' => $this->schoolYearId,
-                    'classroom_id' => $this->classroomId,
+                    'section_id' => $this->sectionId,
                     'period' => $this->period,
                 ],
                 [
@@ -81,16 +100,23 @@ class CalculateReportCardJob implements ShouldQueue
             );
 
             DB::commit();
+            
+            Log::info("CalculateReportCardJob: Report card created/updated", [
+                'report_card_id' => $reportCard->id,
+                'student_id' => $this->studentId,
+                'period' => $this->period,
+                'average' => $average
+            ]);
 
             // Trigger rank calculation for this term
-            CalculateRanksJob::dispatch($this->schoolYearId, $this->classroomId, $this->period);
+            CalculateRanksJob::dispatch($this->schoolYearId, $this->sectionId, $this->period);
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('CalculateReportCardJob Error: ' . $e->getMessage(), [
                 'student_id' => $this->studentId,
                 'school_year_id' => $this->schoolYearId,
-                'classroom_id' => $this->classroomId,
+                'section_id' => $this->sectionId,
                 'period' => $this->period,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -115,13 +141,13 @@ class CalculateReportCardJob implements ShouldQueue
             // Calculate subject average (simple average of all assignments for this subject)
             $subjectAverage = $subjectGrades->avg('score');
 
-            // Get coefficient for this subject in this classroom
-            $classroomSubject = \App\Models\ClassroomSubject::where('classroom_id', $this->classroomId)
+            // Get coefficient for this subject in this section
+            $sectionSubject = \App\Models\SectionSubject::where('section_id', $this->sectionId)
                 ->where('subject_id', $subjectId)
                 ->where('school_year_id', $this->schoolYearId)
                 ->first();
             
-            $coefficient = $classroomSubject ? $classroomSubject->coefficient : 1;
+            $coefficient = $sectionSubject ? $sectionSubject->coefficient : 1;
 
             $totalWeightedScore += $subjectAverage * $coefficient;
             $totalCoefficients += $coefficient;
@@ -138,7 +164,7 @@ class CalculateReportCardJob implements ShouldQueue
         Log::error('CalculateReportCardJob failed permanently', [
             'student_id' => $this->studentId,
             'school_year_id' => $this->schoolYearId,
-            'classroom_id' => $this->classroomId,
+            'section_id' => $this->sectionId,
             'period' => $this->period,
             'error' => $exception->getMessage()
         ]);

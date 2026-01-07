@@ -23,20 +23,16 @@ class ClassroomUpdateRequest extends FormRequest
 				'required',
 				'string',
 				'max:50',
-				Rule::unique('classrooms', 'code')
+				Rule::unique('sections', 'code')
 					->where(function ($query) {
-						// Assuming the school_year_id is not changing during update, or is passed in request
-						// If it's not passed, we should check against the existing one or the new one if provided.
-						// Safest is to use the one in request if present, or from the model if not.
-                        // But typically for update we might not change school_year.
-                        // Let's assume request param if present.
-                        $schoolYearId = request('school_year_id') ?? $this->route('classroom')->school_year_id;
-						return $query->where('school_year_id', $schoolYearId);
+						$schoolYearId = request('school_year_id') ?? $this->route('section')?->school_year_id;
+						$schoolId = request('school_id') ?? $this->route('section')?->school_id ?? auth()->user()?->school_id;
+						return $query->where('school_year_id', $schoolYearId)
+							->where('school_id', $schoolId);
 					})
-					->ignore($this->route('classroom')?->id),
+					->ignore($this->route('section')?->id),
 			],
-			'cycle' => 'sometimes|required|in:primaire,college,lycee',
-			'level' => 'sometimes|required|string|max:50',
+			'classroom_template_id' => 'sometimes|required|exists:classroom_templates,id',
             'tuition_fee' => 'sometimes|nullable|numeric|min:0',
 		];
 	}

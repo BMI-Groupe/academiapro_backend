@@ -12,7 +12,20 @@ class GradeRepository implements GradeInterface
 	public function paginate(array $filters = []): LengthAwarePaginator
 	{
 		$query = Grade::query()
-			->with(['student', 'assignment.subject', 'assignment.schoolYear', 'grader']);
+			->with(['student', 'assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear', 'grader']);
+
+		if (!empty($filters['search'])) {
+			$search = $filters['search'];
+			$query->where(function ($q) use ($search) {
+				$q->whereHas('student', function (Builder $sq) use ($search) {
+					$sq->where('first_name', 'like', "%{$search}%")
+						->orWhere('last_name', 'like', "%{$search}%")
+						->orWhere('matricule', 'like', "%{$search}%");
+				})->orWhereHas('assignment', function (Builder $aq) use ($search) {
+					$aq->where('title', 'like', "%{$search}%");
+				});
+			});
+		}
 
 		if (!empty($filters['student_id'])) {
 			$query->where('student_id', $filters['student_id']);
@@ -24,9 +37,10 @@ class GradeRepository implements GradeInterface
 			});
 		}
 
-		if (!empty($filters['classroom_id'])) {
-			$query->whereHas('student', function (Builder $q) use ($filters) {
-				$q->where('classroom_id', $filters['classroom_id']);
+		if (!empty($filters['classroom_id']) || !empty($filters['section_id'])) {
+			$sectionId = $filters['section_id'] ?? $filters['classroom_id'];
+			$query->whereHas('assignment', function (Builder $q) use ($sectionId) {
+				$q->where('section_id', $sectionId);
 			});
 		}
 
@@ -47,13 +61,13 @@ class GradeRepository implements GradeInterface
 
 	public function store(array $data): Grade
 	{
-		return Grade::create($data)->load(['student', 'assignment.subject', 'assignment.schoolYear', 'grader']);
+		return Grade::create($data)->load(['student', 'assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear', 'grader']);
 	}
 
 	public function update(Grade $grade, array $data): Grade
 	{
 		$grade->update($data);
-		return $grade->fresh()->load(['student', 'assignment.subject', 'assignment.schoolYear', 'grader']);
+		return $grade->fresh()->load(['student', 'assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear', 'grader']);
 	}
 
 	public function delete(Grade $grade): void
@@ -65,7 +79,7 @@ class GradeRepository implements GradeInterface
 	{
 		$query = Grade::query()
 			->where('student_id', $studentId)
-			->with(['assignment.subject', 'assignment.schoolYear', 'grader']);
+			->with(['assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear', 'grader']);
 
 		if (!empty($filters['school_year_id'])) {
 			$query->whereHas('assignment', function (Builder $q) use ($filters) {
@@ -86,7 +100,7 @@ class GradeRepository implements GradeInterface
 	{
 		$query = Grade::query()
 			->where('graded_by', $teacherId)
-			->with(['student', 'assignment.subject', 'assignment.schoolYear']);
+			->with(['student', 'assignment.subject', 'assignment.section.classroomTemplate', 'assignment.schoolYear']);
 
 		if (!empty($filters['school_year_id'])) {
 			$query->whereHas('assignment', function (Builder $q) use ($filters) {
@@ -94,9 +108,10 @@ class GradeRepository implements GradeInterface
 			});
 		}
 
-		if (!empty($filters['classroom_id'])) {
-			$query->whereHas('student', function (Builder $q) use ($filters) {
-				$q->where('classroom_id', $filters['classroom_id']);
+		if (!empty($filters['classroom_id']) || !empty($filters['section_id'])) {
+			$sectionId = $filters['section_id'] ?? $filters['classroom_id'];
+			$query->whereHas('assignment', function (Builder $q) use ($sectionId) {
+				$q->where('section_id', $sectionId);
 			});
 		}
 

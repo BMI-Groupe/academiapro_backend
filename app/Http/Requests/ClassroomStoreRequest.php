@@ -22,12 +22,20 @@ class ClassroomStoreRequest extends FormRequest
 				'required',
 				'string',
 				'max:50',
-				Rule::unique('classrooms')->where(function ($query) {
-					return $query->where('school_year_id', request('school_year_id'));
+				Rule::unique('sections', 'code')->where(function ($query) {
+					$schoolId = request('school_id') ?? auth()->user()?->school_id;
+					$query->where('school_year_id', request('school_year_id'));
+					if ($schoolId) {
+						$query->where('school_id', $schoolId);
+					} else {
+						$query->whereNull('school_id');
+					}
+					return $query;
 				}),
 			],
-			'cycle' => 'required|in:primaire,college,lycee',
-			'level' => 'required|string|max:50',
+			'classroom_template_id' => 'nullable|exists:classroom_templates,id', // Optionnel - le repository le créera si nécessaire
+			'level' => 'required|string|max:50', // Requis pour créer le template automatiquement
+			'cycle' => 'required|in:primaire,college,lycee', // Requis pour créer le template automatiquement
 			'tuition_fee' => 'nullable|numeric|min:0',
 			'school_year_id' => 'required|exists:school_years,id',
             'school_id' => 'nullable|exists:schools,id',

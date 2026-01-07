@@ -14,7 +14,7 @@ class Schedule extends Model
 
 	protected $fillable = [
 		'school_id',
-		'classroom_id',
+		'section_id',
 		'subject_id',
 		'teacher_id',
 		'school_year_id',
@@ -28,9 +28,15 @@ class Schedule extends Model
 		// Time fields are stored as strings in format HH:MM:SS
 	];
 
+	public function section(): BelongsTo
+	{
+		return $this->belongsTo(Section::class);
+	}
+
+	// Alias pour compatibilité (à supprimer progressivement)
 	public function classroom(): BelongsTo
 	{
-		return $this->belongsTo(Classroom::class);
+		return $this->belongsTo(Section::class, 'section_id');
 	}
 
 	public function subject(): BelongsTo

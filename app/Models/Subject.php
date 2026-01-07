@@ -22,17 +22,28 @@ class Subject extends Model
 		'coefficient',
 	];
 
+    public function sections(): BelongsToMany
+    {
+        return $this->belongsToMany(Section::class, 'section_subjects')
+            ->withPivot(['coefficient', 'school_year_id'])
+            ->using(SectionSubject::class)
+            ->withTimestamps();
+    }
+
+    public function sectionSubjects(): HasMany
+    {
+        return $this->hasMany(SectionSubject::class);
+    }
+
+    // Alias pour compatibilité (à supprimer progressivement)
     public function classrooms(): BelongsToMany
     {
-        return $this->belongsToMany(Classroom::class, 'classroom_subjects')
-            ->withPivot(['coefficient'])
-            ->using(ClassroomSubject::class)
-            ->withTimestamps();
+        return $this->sections();
     }
 
     public function classroomSubjects(): HasMany
     {
-        return $this->hasMany(ClassroomSubject::class);
+        return $this->sectionSubjects();
     }
 
     public function assignments(): HasMany

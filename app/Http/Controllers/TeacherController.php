@@ -29,7 +29,23 @@ class TeacherController extends Controller
 			'school_year_id' => $request->query('school_year_id'),
 		];
 
+		// Debug: Log user info
+		$user = Auth::user();
+		\Log::info('TeacherController::index', [
+			'user_id' => $user?->id,
+			'user_role' => $user?->role,
+			'user_school_id' => $user?->school_id,
+		]);
+
 		$data = $this->teachers->paginate($filters)->through(fn ($t) => new TeacherResource($t));
+		
+		// Debug: Log pagination info
+		\Log::info('TeacherController::index result', [
+			'total' => $data->total(),
+			'count' => $data->count(),
+			'per_page' => $data->perPage(),
+		]);
+
 		return ApiResponse::sendResponse(true, [$data], 'Opération effectuée.', 200);
 	}
 
@@ -120,7 +136,7 @@ class TeacherController extends Controller
 			$data['school_id'] = $schoolId; 
 			
 			// Créer l'enseignant
-			$teacher = Teacher::create($data)->load(['user', 'classroomSubjectTeachers.classroomSubject.classroom', 'classroomSubjectTeachers.classroomSubject.subject']);
+			$teacher = Teacher::create($data)->load(['user', 'sectionSubjectTeachers.sectionSubject.section.classroomTemplate', 'sectionSubjectTeachers.sectionSubject.subject']);
 			
 			DB::commit();
 			
@@ -173,7 +189,7 @@ class TeacherController extends Controller
 
 	public function show(Teacher $teacher)
 	{
-		return ApiResponse::sendResponse(true, [new TeacherResource($teacher->load(['classroomSubjectTeachers.classroomSubject.classroom', 'classroomSubjectTeachers.classroomSubject.subject', 'classroomSubjectTeachers.schoolYear']))], 'Opération effectuée.', 200);
+		return ApiResponse::sendResponse(true, [new TeacherResource($teacher->load(['sectionSubjectTeachers.sectionSubject.section.classroomTemplate', 'sectionSubjectTeachers.sectionSubject.subject', 'sectionSubjectTeachers.schoolYear']))], 'Opération effectuée.', 200);
 	}
 
 	public function update(TeacherUpdateRequest $request, Teacher $teacher)

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Classroom;
+use App\Models\Section;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\Assignment;
@@ -19,15 +19,25 @@ class ClassroomDetailController extends Controller
     {
         $schoolYearId = $request->query('school_year_id');
         
-        $classroom = Classroom::with(['schoolYear'])->findOrFail($id);
-
-        // Si school_year_id n'est pas fourni, utiliser celui de la classe
-        if (!$schoolYearId) {
-            $schoolYearId = $classroom->school_year_id;
+        // Le binding de route peut passer un Section ou un ID
+        $section = $id instanceof Section ? $id : Section::with(['schoolYear', 'classroomTemplate'])->findOrFail($id);
+        
+        // S'assurer que les relations sont chargées
+        if (!$section->relationLoaded('schoolYear')) {
+            $section->load('schoolYear');
+        }
+        if (!$section->relationLoaded('classroomTemplate')) {
+            $section->load('classroomTemplate');
         }
 
-        // Élèves inscrits dans cette classe pour l'année donnée
-        $enrollments = Enrollment::where('classroom_id', $id)
+        // Si school_year_id n'est pas fourni, utiliser celui de la section
+        if (!$schoolYearId) {
+            $schoolYearId = $section->school_year_id;
+        }
+
+        // Élèves inscrits dans cette section pour l'année donnée
+        $sectionId = $section->id;
+        $enrollments = Enrollment::where('section_id', $sectionId)
             ->when($schoolYearId, function($q) use ($schoolYearId) {
                 $q->where('school_year_id', $schoolYearId);
             })
@@ -35,7 +45,8 @@ class ClassroomDetailController extends Controller
             ->get();
 
         return ApiResponse::sendResponse(true, [
-            'classroom' => $classroom,
+            'classroom' => $section, // Alias pour compatibilité
+            'section' => $section,
             'students' => $enrollments->pluck('student'),
             'student_count' => $enrollments->count()
         ], 'Détails de la classe', 200);
@@ -49,80 +60,169 @@ class ClassroomDetailController extends Controller
         $assignmentId = $request->query('assignment_id');
         $schoolYearId = $request->query('school_year_id');
 
+        // Le binding de route peut passer un Section ou un ID
+        $section = $id instanceof Section ? $id : Section::findOrFail($id);
+        $sectionId = $section->id;
+
         if ($assignmentId) {
             // Classement pour un examen spécifique
-            return $this->rankingByAssignment($id, $assignmentId);
+            return $this->rankingByAssignment($sectionId, $assignmentId);
         } else {
             // Classement général pour l'année
-            return $this->generalRanking($id, $schoolYearId);
+            if (!$schoolYearId) {
+                $schoolYearId = $section->school_year_id;
+            }
+            return $this->generalRanking($sectionId, $schoolYearId);
         }
     }
 
     /**
      * Classement pour un examen spécifique
      */
-    private function rankingByAssignment($classroomId, $assignmentId)
+    private function rankingByAssignment($sectionId, $assignmentId)
     {
-        $assignment = Assignment::with(['subject'])->findOrFail($assignmentId);
+        $assignment = Assignment::with(['subject', 'section'])->findOrFail($assignmentId);
+        $schoolYearId = $assignment->school_year_id;
 
+        // Vérifier que l'assignment appartient bien à la section
+        if ($assignment->section_id != $sectionId) {
+            return ApiResponse::sendResponse(false, [], 'Cet examen n\'appartient pas à cette classe.', 400);
+        }
+
+        // Récupérer toutes les notes pour cet examen, en s'assurant que les élèves sont bien dans la section
         $grades = Grade::where('assignment_id', $assignmentId)
-            ->whereHas('student.enrollments', function($q) use ($classroomId, $assignment) {
-                $q->where('classroom_id', $classroomId)
-                  ->where('school_year_id', $assignment->school_year_id);
+            ->whereHas('student.enrollments', function($q) use ($sectionId, $schoolYearId) {
+                $q->where('section_id', $sectionId)
+                  ->where('school_year_id', $schoolYearId);
             })
             ->with(['student'])
-            ->orderBy('score', 'desc')
             ->get();
 
-        $ranking = $grades->map(function($grade, $index) {
+        if ($grades->isEmpty()) {
+            return ApiResponse::sendResponse(true, [
+                'assignment' => $assignment,
+                'ranking' => [],
+                'average' => 0,
+                'highest' => 0,
+                'lowest' => 0,
+                'student_count' => 0
+            ], 'Aucune note enregistrée pour cet examen.', 200);
+        }
+
+        // Construire le classement
+        $maxScore = $assignment->max_score ?? 20;
+        
+        $ranking = $grades->map(function($grade) use ($maxScore) {
             return [
-                'rank' => $index + 1,
                 'student' => $grade->student,
                 'score' => $grade->score,
-                'max_score' => $grade->assignment->max_score ?? 20,
-                'percentage' => ($grade->score / ($grade->assignment->max_score ?? 20)) * 100
+                'max_score' => $maxScore,
+                'percentage' => ($grade->score / $maxScore) * 100
             ];
+        })
+        ->sortByDesc('score')
+        ->values()
+        ->map(function($item, $index) {
+            $item['rank'] = $index + 1;
+            return $item;
         });
+
+        $scores = $ranking->pluck('score');
 
         return ApiResponse::sendResponse(true, [
             'assignment' => $assignment,
             'ranking' => $ranking,
-            'average' => $grades->avg('score'),
-            'highest' => $grades->max('score'),
-            'lowest' => $grades->min('score')
+            'average' => $scores->count() > 0 ? round($scores->avg(), 2) : 0,
+            'highest' => $scores->count() > 0 ? $scores->max() : 0,
+            'lowest' => $scores->count() > 0 ? $scores->min() : 0,
+            'student_count' => $ranking->count()
         ], 'Classement de l\'examen', 200);
     }
 
     /**
      * Classement général pour l'année scolaire
      */
-    private function generalRanking($classroomId, $schoolYearId)
+    private function generalRanking($sectionId, $schoolYearId)
     {
-        // Récupérer tous les élèves de la classe
-        $enrollments = Enrollment::where('classroom_id', $classroomId)
+        // Récupérer tous les élèves de la section
+        $enrollments = Enrollment::where('section_id', $sectionId)
             ->where('school_year_id', $schoolYearId)
             ->with(['student'])
             ->get();
 
-        $ranking = $enrollments->map(function($enrollment) use ($schoolYearId) {
+        // Récupérer tous les assignments de la section pour cette année
+        $assignmentIds = Assignment::where('section_id', $sectionId)
+            ->where('school_year_id', $schoolYearId)
+            ->pluck('id');
+
+        if ($assignmentIds->isEmpty()) {
+            return ApiResponse::sendResponse(true, [
+                'ranking' => [],
+                'class_average' => 0,
+                'student_count' => 0
+            ], 'Aucun examen/devoir pour cette classe et cette année.', 200);
+        }
+
+        // Récupérer la section avec ses matières pour calculer les moyennes pondérées
+        $section = Section::with(['subjects' => function($q) use ($schoolYearId) {
+            $q->where('section_subjects.school_year_id', $schoolYearId);
+        }])->find($sectionId);
+
+        $ranking = $enrollments->map(function($enrollment) use ($assignmentIds, $section) {
             $student = $enrollment->student;
             
-            // Calculer la moyenne générale de l'élève
-            $averageScore = Grade::where('student_id', $student->id)
-                ->whereHas('assignment', function($q) use ($schoolYearId) {
-                    $q->where('school_year_id', $schoolYearId);
-                })
-                ->avg('score');
+            // Récupérer toutes les notes de l'élève pour les assignments de cette section
+            $grades = Grade::where('student_id', $student->id)
+                ->whereIn('assignment_id', $assignmentIds)
+                ->with(['assignment.subject'])
+                ->get();
+
+            if ($grades->isEmpty()) {
+                return [
+                    'student' => $student,
+                    'average' => 0,
+                    'grade_count' => 0
+                ];
+            }
+
+            // Calculer la moyenne pondérée par coefficient
+            // Grouper les notes par matière
+            $gradesBySubject = $grades->groupBy(function($grade) {
+                return $grade->assignment->subject_id ?? 'unknown';
+            });
+
+            $totalWeightedScore = 0;
+            $totalCoefficient = 0;
+
+            foreach ($gradesBySubject as $subjectId => $subjectGrades) {
+                // Calculer la moyenne de la matière
+                $subjectAverage = $subjectGrades->avg('score');
+                
+                // Récupérer le coefficient de la matière
+                $coefficient = 1; // Par défaut
+                if ($section && $subjectId !== 'unknown') {
+                    $sectionSubject = $section->subjects->firstWhere('id', $subjectId);
+                    if ($sectionSubject && isset($sectionSubject->pivot->coefficient)) {
+                        $coefficient = $sectionSubject->pivot->coefficient;
+                    }
+                }
+
+                $totalWeightedScore += $subjectAverage * $coefficient;
+                $totalCoefficient += $coefficient;
+            }
+
+            // Calculer la moyenne générale pondérée
+            $averageScore = $totalCoefficient > 0 ? ($totalWeightedScore / $totalCoefficient) : 0;
 
             return [
                 'student' => $student,
                 'average' => round($averageScore, 2),
-                'grade_count' => Grade::where('student_id', $student->id)
-                    ->whereHas('assignment', function($q) use ($schoolYearId) {
-                        $q->where('school_year_id', $schoolYearId);
-                    })
-                    ->count()
+                'grade_count' => $grades->count()
             ];
+        })
+        ->filter(function($item) {
+            // Inclure seulement les élèves qui ont au moins une note
+            return $item['grade_count'] > 0;
         })
         ->sortByDesc('average')
         ->values()
@@ -131,9 +231,13 @@ class ClassroomDetailController extends Controller
             return $item;
         });
 
+        $averages = $ranking->pluck('average')->filter(function($avg) {
+            return $avg > 0;
+        });
+
         return ApiResponse::sendResponse(true, [
             'ranking' => $ranking,
-            'class_average' => $ranking->avg('average'),
+            'class_average' => $averages->count() > 0 ? round($averages->avg(), 2) : 0,
             'student_count' => $ranking->count()
         ], 'Classement général de la classe', 200);
     }
@@ -145,7 +249,11 @@ class ClassroomDetailController extends Controller
     {
         $schoolYearId = $request->query('school_year_id');
 
-        $assignments = Assignment::where('classroom_id', $id)
+        // Le binding de route peut passer un Section ou un ID
+        $section = $id instanceof Section ? $id : Section::findOrFail($id);
+        $sectionId = $section->id;
+
+        $assignments = Assignment::where('section_id', $sectionId)
             ->when($schoolYearId, function($q) use ($schoolYearId) {
                 $q->where('school_year_id', $schoolYearId);
             })

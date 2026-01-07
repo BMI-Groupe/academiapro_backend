@@ -8,9 +8,10 @@ use App\Models\User;
 use App\Models\Teacher;
 use App\Models\Student;
 use App\Models\SchoolYear;
-use App\Models\Classroom;
+use App\Models\ClassroomTemplate;
+use App\Models\Section;
 use App\Models\Subject;
-use App\Models\ClassroomSubject;
+use App\Models\SectionSubject;
 use App\Models\Enrollment;
 
 class InitialDataSeeder extends Seeder
@@ -35,15 +36,22 @@ class InitialDataSeeder extends Seeder
         ]);
 
         // Create active school year for this school
-        $schoolYear = SchoolYear::create([
-            'school_id' => $school->id,
-            'year_start' => 2024,
-            'year_end' => 2025,
-            'label' => '2024-2025',
-            'is_active' => true,
-            'start_date' => '2024-09-01',
-            'end_date' => '2025-06-30',
-        ]);
+        $schoolYear = SchoolYear::firstOrCreate(
+            ['school_id' => $school->id, 'year_start' => 2024, 'year_end' => 2025],
+            [
+                'label' => '2024-2025',
+                'is_active' => true,
+                'start_date' => '2024-09-01',
+                'end_date' => '2025-06-30',
+                'period_system' => 'trimester',
+                'total_periods' => 3
+            ]
+        );
+        
+        // Corriger le label si nécessaire
+        if ($schoolYear->label !== '2024-2025') {
+            $schoolYear->update(['label' => '2024-2025']);
+        }
 
         // Create a director user for this school
         $director = User::create([
@@ -84,25 +92,54 @@ class InitialDataSeeder extends Seeder
             'birth_date' => '1980-05-20',
         ]);
 
-        // Create sample classrooms
-        $classroom6A = Classroom::create([
+        // Create classroom templates
+        $template6e = ClassroomTemplate::firstOrCreate(
+            [
+                'school_id' => $school->id,
+                'code' => '6EME',
+            ],
+            [
+                'name' => '6ème',
+                'cycle' => 'college',
+                'level' => '6eme',
+                'tuition_fee' => 50000,
+                'is_active' => true,
+            ]
+        );
+
+        $template5e = ClassroomTemplate::firstOrCreate(
+            [
+                'school_id' => $school->id,
+                'code' => '5EME',
+            ],
+            [
+                'name' => '5ème',
+                'cycle' => 'college',
+                'level' => '5eme',
+                'tuition_fee' => 55000,
+                'is_active' => true,
+            ]
+        );
+
+        // Create sections for the school year
+        $section6A = Section::create([
+            'classroom_template_id' => $template6e->id,
+            'school_year_id' => $schoolYear->id,
             'school_id' => $school->id,
             'name' => '6ème A',
-            'code' => '6A',
-            'cycle' => 'college',
-            'level' => '6eme',
-            'school_year_id' => $schoolYear->id,
+            'code' => '6EME-A-2024-2025',
             'tuition_fee' => 50000,
+            'is_active' => true,
         ]);
 
-        $classroom5B = Classroom::create([
+        $section5B = Section::create([
+            'classroom_template_id' => $template5e->id,
+            'school_year_id' => $schoolYear->id,
             'school_id' => $school->id,
             'name' => '5ème B',
-            'code' => '5B',
-            'cycle' => 'college',
-            'level' => '5eme',
-            'school_year_id' => $schoolYear->id,
+            'code' => '5EME-B-2024-2025',
             'tuition_fee' => 55000,
+            'is_active' => true,
         ]);
 
         // Create sample subjects
@@ -118,31 +155,30 @@ class InitialDataSeeder extends Seeder
             'code' => 'FR',
         ]);
 
-        // Associate subjects with classrooms for the school year
-        // Note: ClassroomSubject is a pivot, no direct school_id, it relies on classroom/subject school_id consistency
-        ClassroomSubject::create([
-            'classroom_id' => $classroom6A->id,
+        // Associate subjects with sections for the school year
+        SectionSubject::create([
+            'section_id' => $section6A->id,
             'subject_id' => $math->id,
             'school_year_id' => $schoolYear->id,
             'coefficient' => 5,
         ]);
 
-        ClassroomSubject::create([
-            'classroom_id' => $classroom6A->id,
+        SectionSubject::create([
+            'section_id' => $section6A->id,
             'subject_id' => $french->id,
             'school_year_id' => $schoolYear->id,
             'coefficient' => 4,
         ]);
 
-        ClassroomSubject::create([
-            'classroom_id' => $classroom5B->id,
+        SectionSubject::create([
+            'section_id' => $section5B->id,
             'subject_id' => $math->id,
             'school_year_id' => $schoolYear->id,
             'coefficient' => 5,
         ]);
 
-        ClassroomSubject::create([
-            'classroom_id' => $classroom5B->id,
+        SectionSubject::create([
+            'section_id' => $section5B->id,
             'subject_id' => $french->id,
             'school_year_id' => $schoolYear->id,
             'coefficient' => 4,
@@ -169,19 +205,21 @@ class InitialDataSeeder extends Seeder
             'address' => 'Rue B, Ville',
         ]);
 
-        // Enroll students in classrooms
+        // Enroll students in sections
         Enrollment::create([
             'student_id' => $alice->id,
-            'classroom_id' => $classroom6A->id,
+            'section_id' => $section6A->id,
             'school_year_id' => $schoolYear->id,
             'enrolled_at' => '2024-09-05',
+            'status' => 'active',
         ]);
 
         Enrollment::create([
             'student_id' => $paul->id,
-            'classroom_id' => $classroom5B->id,
+            'section_id' => $section5B->id,
             'school_year_id' => $schoolYear->id,
             'enrolled_at' => '2024-09-06',
+            'status' => 'active',
         ]);
     }
 }

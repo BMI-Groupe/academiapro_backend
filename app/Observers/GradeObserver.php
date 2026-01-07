@@ -33,8 +33,8 @@ class GradeObserver
     }
 
     /**
-     * Dispatch report card calculation jobs for the student.
-     * Calculates both quarterly and annual report cards.
+     * Dispatch report card calculation for the student.
+     * Creates/updates a report card for the assignment with all grades for that student.
      */
     protected function dispatchReportCardCalculation(Grade $grade): void
     {
@@ -53,32 +53,44 @@ class GradeObserver
             }
 
             $schoolYearId = $assignment->school_year_id;
-            $classroomId = $assignment->classroom_id;
+            $sectionId = $assignment->section_id;
             $period = $assignment->period;
 
-            // Calculate quarterly report card if assignment has a term
-            if ($period !== null) {
-                CalculateReportCardJob::dispatch(
-                    $student->id,
-                    $schoolYearId,
-                    $classroomId,
-                    $period
-                )->onQueue('reports');
+            // Récupérer toutes les notes de cet élève pour ce devoir
+            $allGrades = \App\Models\Grade::where('student_id', $student->id)
+                ->where('assignment_id', $assignment->id)
+                ->get();
+
+            if ($allGrades->isEmpty()) {
+                Log::warning("No grades found for student {$student->id} and assignment {$assignment->id}");
+                return;
             }
 
-            // Always calculate annual report card (term = null)
-            CalculateReportCardJob::dispatch(
-                $student->id,
-                $schoolYearId,
-                $classroomId,
-                null // Annual
-            )->onQueue('reports');
+            // Calculer la moyenne de toutes les notes pour ce devoir
+            $average = round($allGrades->avg('score'), 2);
 
-            Log::info("Report card calculation dispatched", [
+            // Créer ou mettre à jour le bulletin pour ce devoir
+            \App\Models\ReportCard::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'school_year_id' => $schoolYearId,
+                    'section_id' => $sectionId,
+                    'assignment_id' => $assignment->id,
+                ],
+                [
+                    'average' => $average,
+                    'period' => $period,
+                    'generated_at' => now(),
+                ]
+            );
+
+            Log::info("Report card created/updated for assignment", [
                 'student_id' => $student->id,
                 'school_year_id' => $schoolYearId,
-                'classroom_id' => $classroomId,
-                'period' => $period
+                'section_id' => $sectionId,
+                'assignment_id' => $assignment->id,
+                'average' => $average,
+                'grades_count' => $allGrades->count()
             ]);
 
         } catch (\Exception $e) {

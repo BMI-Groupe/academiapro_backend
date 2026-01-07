@@ -29,17 +29,23 @@ class Teacher extends Model
 		return $this->belongsTo(User::class);
 	}
 
+    public function sectionSubjectTeachers(): HasMany
+    {
+        return $this->hasMany(SectionSubjectTeacher::class);
+    }
+
+    // Alias pour compatibilité (à supprimer progressivement)
     public function classroomSubjectTeachers(): HasMany
     {
-        return $this->hasMany(ClassroomSubjectTeacher::class);
+        return $this->sectionSubjectTeachers();
     }
 
     // Helper to get assignments for active year
     public function assignmentsForYear($schoolYearId)
     {
-        return $this->classroomSubjectTeachers()
+        return $this->sectionSubjectTeachers()
             ->where('school_year_id', $schoolYearId)
-            ->with(['classroomSubject.classroom', 'classroomSubject.subject'])
+            ->with(['sectionSubject.section.classroomTemplate', 'sectionSubject.subject'])
             ->get();
     }
 

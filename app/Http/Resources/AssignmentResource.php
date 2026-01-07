@@ -24,12 +24,28 @@ class AssignmentResource extends JsonResource
             'total_score' => $this->total_score,
             'start_date' => $this->start_date?->format('Y-m-d'),
             'due_date' => $this->due_date?->format('Y-m-d'),
-            'classroom_id' => $this->classroom_id,
-            'classroom' => $this->whenLoaded('classroom', fn() => [
-                'id' => $this->classroom->id,
-                'name' => $this->classroom->name,
-                'code' => $this->classroom->code,
+            'classroom_id' => $this->section_id, // Alias pour compatibilité frontend
+            'section_id' => $this->section_id,
+            'classroom' => $this->whenLoaded('section', fn() => [
+                'id' => $this->section->id,
+                'name' => $this->section->display_name ?? $this->section->name ?? $this->section->classroomTemplate->name,
+                'code' => $this->section->code,
             ]),
+            'section' => $this->whenLoaded('section', function () {
+                $section = $this->section;
+                return [
+                    'id' => $section->id,
+                    'name' => $section->display_name ?? $section->name,
+                    'code' => $section->code,
+                    'classroom_template' => $section->relationLoaded('classroomTemplate') && $section->classroomTemplate ? [
+                        'id' => $section->classroomTemplate->id,
+                        'name' => $section->classroomTemplate->name,
+                        'code' => $section->classroomTemplate->code,
+                        'cycle' => $section->classroomTemplate->cycle,
+                        'level' => $section->classroomTemplate->level,
+                    ] : null,
+                ];
+            }),
             'subject_id' => $this->subject_id,
             'subject' => $this->whenLoaded('subject', fn() => [
                 'id' => $this->subject->id,

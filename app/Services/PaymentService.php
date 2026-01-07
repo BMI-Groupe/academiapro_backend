@@ -108,7 +108,7 @@ class PaymentService
      */
     public function getAllPayments(array $filters = [])
     {
-        $query = Payment::with(['student.enrollments.classroom', 'schoolYear', 'user'])
+        $query = Payment::with(['student.enrollments.section.classroomTemplate', 'schoolYear', 'user'])
             ->orderBy('payment_date', 'desc');
 
         // Filtrer par année scolaire

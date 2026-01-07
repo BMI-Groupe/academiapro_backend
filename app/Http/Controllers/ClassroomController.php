@@ -9,7 +9,7 @@ use App\Http\Requests\ClassroomSubjectSyncRequest;
 use App\Http\Requests\ClassroomUpdateRequest;
 use App\Http\Resources\ClassroomResource;
 use App\Interfaces\ClassroomInterface;
-use App\Models\Classroom;
+use App\Models\Section;
 use App\Responses\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -69,13 +69,13 @@ class ClassroomController extends Controller
 		}
 	}
 
-	public function show(Classroom $classroom)
+	public function show(Section $classroom)
 	{
-		$classroom->load(['enrollments', 'subjects']);
+		$classroom->load(['enrollments', 'subjects', 'classroomTemplate']);
 		return ApiResponse::sendResponse(true, [new ClassroomResource($classroom)], 'Opération effectuée.', 200);
 	}
 
-	public function update(ClassroomUpdateRequest $request, Classroom $classroom)
+	public function update(ClassroomUpdateRequest $request, Section $classroom)
 	{
 		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
@@ -84,7 +84,7 @@ class ClassroomController extends Controller
 		DB::beginTransaction();
 		try {
 			$classroom = $this->classrooms->update($classroom, $request->validated());
-			$classroom->load(['subjects', 'enrollments']);
+			$classroom->load(['subjects', 'enrollments', 'classroomTemplate']);
 			DB::commit();
 			return ApiResponse::sendResponse(true, [new ClassroomResource($classroom)], 'Classe mise à jour.', 200);
 		} catch (\Throwable $th) {
@@ -92,7 +92,7 @@ class ClassroomController extends Controller
 		}
 	}
 
-	public function destroy(Classroom $classroom)
+	public function destroy(Section $classroom)
 	{
 		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
@@ -108,7 +108,7 @@ class ClassroomController extends Controller
 		}
 	}
 
-	public function enroll(ClassroomEnrollRequest $request, Classroom $classroom)
+	public function enroll(ClassroomEnrollRequest $request, Section $classroom)
 	{
 		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
@@ -120,7 +120,7 @@ class ClassroomController extends Controller
 			$this->classrooms->enrollStudents(
 				$classroom,
 				$data['student_ids'],
-				$data['school_year'],
+				$data['school_year_id'],
 				$data['enrolled_at'] ?? null
 			);
 			DB::commit();
@@ -130,7 +130,7 @@ class ClassroomController extends Controller
 			return ApiResponse::rollback($th);
 		}
 	}
-	public function syncSubjects(ClassroomSubjectSyncRequest $request, Classroom $classroom)
+	public function syncSubjects(ClassroomSubjectSyncRequest $request, Section $classroom)
 	{
 		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
@@ -147,7 +147,7 @@ class ClassroomController extends Controller
 		}
 	}
 
-	public function assignTeachers(ClassroomAssignTeacherRequest $request, Classroom $classroom)
+	public function assignTeachers(ClassroomAssignTeacherRequest $request, Section $classroom)
 	{
 		if (!in_array(Auth::user()->role, ['admin', 'directeur'])) {
 			return ApiResponse::sendResponse(false, [], 'Vous n\'êtes pas autorisé à effectuer cette action.', 403);
@@ -158,7 +158,7 @@ class ClassroomController extends Controller
 			$data = $request->validated();
 			$this->classrooms->assignTeachers($classroom, $data['subject_id'], $data['teacher_ids']);
 			DB::commit();
-			$classroom->load(['subjects', 'enrollments']);
+			$classroom->load(['subjects', 'enrollments', 'classroomTemplate']);
 			return ApiResponse::sendResponse(true, [new ClassroomResource($classroom)], 'Enseignants assignés.', 200);
 		} catch (\Throwable $th) {
 			return ApiResponse::rollback($th);
@@ -168,7 +168,7 @@ class ClassroomController extends Controller
 	/**
 	 * Get students with ranking for a specific assignment/exam
 	 */
-	public function studentsWithRanking(Request $request, Classroom $classroom)
+	public function studentsWithRanking(Request $request, Section $classroom)
 	{
 		$schoolYearId = $request->query('school_year_id');
 		$assignmentId = $request->query('assignment_id');
@@ -188,21 +188,23 @@ class ClassroomController extends Controller
 				->first();
 		}
 
-		// Get all students in the classroom via enrollments
+		// Get all students in the section via enrollments
+		$sectionId = $classroom->id; // $classroom is a Section instance via route binding
 		$students = DB::table('students')
             ->join('enrollments', 'students.id', '=', 'enrollments.student_id')
-			->where('enrollments.classroom_id', $classroom->id)
+			->where('enrollments.section_id', $sectionId)
             ->where('enrollments.school_year_id', $schoolYearId)
 			->select('students.id', 'students.first_name', 'students.last_name', 'students.matricule')
 			->get();
 
 		// Calculate average and grades for each student
-		$studentsWithGrades = $students->map(function ($student) use ($schoolYearId, $assignmentId) {
+		$studentsWithGrades = $students->map(function ($student) use ($schoolYearId, $assignmentId, $sectionId) {
 			$gradesQuery = DB::table('grades')
 				->join('assignments', 'grades.assignment_id', '=', 'assignments.id')
 				->leftJoin('subjects', 'assignments.subject_id', '=', 'subjects.id')
 				->where('grades.student_id', $student->id)
-				->where('assignments.school_year_id', $schoolYearId);
+				->where('assignments.school_year_id', $schoolYearId)
+				->where('assignments.section_id', $sectionId);
 
 			if ($assignmentId) {
 				$gradesQuery->where('assignments.id', $assignmentId);

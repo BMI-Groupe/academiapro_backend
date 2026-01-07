@@ -109,9 +109,20 @@ class SchoolYear extends Model
 
 	/**
 	 * Get the currently active school year
+	 * Note: This method respects the ScopedBySchool trait, so it will only return
+	 * the active year for the user's school (unless user is admin)
 	 */
 	public static function active()
 	{
 		return self::where('is_active', true)->first();
+	}
+	
+	/**
+	 * Get the currently active school year without school scope
+	 * Use this when you need to get the active year regardless of school
+	 */
+	public static function activeWithoutScope()
+	{
+		return self::withoutGlobalScopes()->where('is_active', true)->first();
 	}
 }

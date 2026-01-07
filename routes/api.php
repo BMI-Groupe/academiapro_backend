@@ -14,9 +14,12 @@ use App\Http\Controllers\SchoolYearController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\EvaluationTypeController;
 use App\Http\Controllers\ClassroomSubjectController;
+use App\Http\Controllers\ClassroomTemplateSubjectController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StudentDetailController;
 use App\Http\Controllers\ClassroomDetailController;
+use App\Http\Controllers\TeacherDetailController;
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +38,19 @@ Route::prefix('/v1.0.0')->group(function () {
 		Route::get('me', [AuthController::class, 'me']);
 		Route::get('logout', [AuthController::class, 'logout']);
         Route::post('update-profile', [AuthController::class, 'updateProfile']);
+
+		// Chatbot endpoint (available to all authenticated users)
+		Route::post('chatbot/chat', [ChatbotController::class, 'chat']);
+
+		// Classroom parameter binding (must be defined before routes that use it)
+		Route::bind('classroom', function ($value) {
+			return \App\Models\Section::findOrFail($value);
+		});
+
+		// Classroom Template parameter binding
+		Route::bind('template', function ($value) {
+			return \App\Models\ClassroomTemplate::findOrFail($value);
+		});
 
 		// Only the directeur and admin can create user accounts
 		Route::middleware(['role:admin,directeur'])->group(function () {
@@ -70,13 +86,15 @@ Route::prefix('/v1.0.0')->group(function () {
 
 			// Classrooms (Read)
 			Route::apiResource('classrooms', ClassroomController::class)->only(['index', 'show']);
-			Route::get('classrooms/{classroom}/ranking', [ClassroomController::class, 'studentsWithRanking']);
+			Route::get('classrooms/{classroom}/ranking', [ClassroomDetailController::class, 'ranking']);
 			Route::get('classrooms/{classroom}/subjects', [ClassroomSubjectController::class, 'index']); // Read classroom subjects
 			Route::get('classrooms/{classroom}/details', [ClassroomDetailController::class, 'show']);
 			Route::get('classrooms/{classroom}/assignments', [ClassroomDetailController::class, 'assignments']);
 
 			// Teachers (Read)
 			Route::apiResource('teachers', TeacherController::class)->only(['index', 'show']);
+			Route::get('teachers/{teacher}/details', [TeacherDetailController::class, 'show']);
+			Route::get('teachers/{teacher}/assignments', [TeacherDetailController::class, 'assignments']);
 
 			// Subjects (Read)
 			Route::apiResource('subjects', SubjectController::class)->only(['index', 'show']);
@@ -122,9 +140,23 @@ Route::prefix('/v1.0.0')->group(function () {
 			Route::put('classrooms/{classroom}/subjects', [ClassroomController::class, 'syncSubjects']); // Deprecated?
 			Route::put('classrooms/{classroom}/assign-teachers', [ClassroomController::class, 'assignTeachers']); // Deprecated?
 			
+			// Classroom Template Subjects Management (Manage subjects at template level)
+			Route::get('classroom-templates/{template}/subjects', [ClassroomTemplateSubjectController::class, 'index']);
+			Route::post('classroom-templates/{template}/subjects', [ClassroomTemplateSubjectController::class, 'store']);
+			Route::put('classroom-templates/{template}/subjects/{subject}', [ClassroomTemplateSubjectController::class, 'update']);
+			Route::delete('classroom-templates/{template}/subjects/{subject}', [ClassroomTemplateSubjectController::class, 'destroy']);
+			
 			// Report Card Generation ? Assuming Director generates them officially
 			Route::post('students/{student}/report-cards/generate', [ReportCardController::class, 'generate']);
 			Route::put('report-cards/{reportCard}', [ReportCardController::class, 'update']);
+
+			// Student Enrollment Management
+			Route::post('students/{student}/reassign-classroom', [StudentDetailController::class, 'reassignClassroom']);
+
+			// Teacher Assignment Management
+			Route::post('teachers/{teacher}/assign-section-subject', [TeacherDetailController::class, 'assignSectionSubject']);
+			Route::post('teachers/{teacher}/reassign-section-subject', [TeacherDetailController::class, 'reassignSectionSubject']);
+			Route::delete('teachers/{teacher}/assignments/{assignment}', [TeacherDetailController::class, 'removeAssignment']);
 
 			// FINANCE & PAYMENTS (Strictly Admin/Directeur)
 			Route::get('students/{student}/payment-details', [StudentController::class, 'payments']);

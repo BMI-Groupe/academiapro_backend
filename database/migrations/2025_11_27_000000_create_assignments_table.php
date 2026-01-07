@@ -19,9 +19,9 @@ return new class extends Migration
             $table->decimal('total_score', 5, 2)->default(20.00);
             $table->date('start_date')->nullable();
             $table->date('due_date');
-            $table->foreignId('classroom_id')->constrained('classrooms')->onDelete('cascade');
+            $table->foreignId('section_id')->constrained('sections')->onDelete('cascade');
             $table->foreignId('subject_id')->nullable()->constrained('subjects')->onDelete('cascade');
-            $table->foreignId('school_year_id')->constrained('school_years')->onDelete('cascade');
+            $table->foreignId('school_year_id')->constrained('school_years')->onDelete('cascade'); // Gardé pour index/performance
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null'); // Director
             $table->integer('period')->nullable();
             $table->timestamps();

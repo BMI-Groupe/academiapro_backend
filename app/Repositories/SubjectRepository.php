@@ -21,13 +21,9 @@ class SubjectRepository implements SubjectInterface
 		}
 
 		if (!empty($filters['school_year_id'])) {
-			$query->where(function ($q) use ($filters) {
-                $q->where('school_year_id', $filters['school_year_id'])
-                  ->orWhereNull('school_year_id')
-                  ->orWhereHas('classroomSubjects', function ($q2) use ($filters) {
-                      $q2->where('school_year_id', $filters['school_year_id']);
-                  });
-            });
+			// Uniquement les matières spécifiques à cette année scolaire
+			// Exclure les matières globales (sans school_year_id)
+			$query->where('school_year_id', $filters['school_year_id']);
 		}
 
 		return $query->orderBy('name')->paginate($filters['per_page'] ?? 15);
