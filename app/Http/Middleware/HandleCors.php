@@ -11,6 +11,10 @@ class HandleCors
     public function handle(Request $request, Closure $next): Response
     {
         $allowedOrigins = [
+            'https://academiapro.net',
+            'https://www.academiapro.net',
+            'http://academiapro.net',
+            'http://www.academiapro.net',
             'http://localhost:3000',
             'http://localhost:5173',
             'http://127.0.0.1:5173',

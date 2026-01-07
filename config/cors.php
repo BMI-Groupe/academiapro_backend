@@ -17,6 +17,8 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
+        'https://academiapro.net',
+        'https://www.academiapro.net',
         'http://academiapro.net',
         'http://www.academiapro.net',
         'http://localhost:3000',
