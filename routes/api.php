@@ -19,6 +19,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StudentDetailController;
 use App\Http\Controllers\ClassroomDetailController;
 use App\Http\Controllers\TeacherDetailController;
+use App\Http\Controllers\PedagogicalResourceController;
 use App\Http\Controllers\ChatbotController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -41,6 +42,11 @@ Route::prefix('/v1.0.0')->group(function () {
 
 		// Chatbot endpoint (available to all authenticated users)
 		Route::post('chatbot/chat', [ChatbotController::class, 'chat']);
+
+        // Pedagogical Resources (Read for all authed users)
+        Route::get('pedagogical-resources', [PedagogicalResourceController::class, 'index']);
+        Route::get('pedagogical-resources/{resource}', [PedagogicalResourceController::class, 'show']);
+        Route::get('pedagogical-resources/{resource}/download', [PedagogicalResourceController::class, 'download']);
 
 		// Classroom parameter binding (must be defined before routes that use it)
 		Route::bind('classroom', function ($value) {
@@ -104,6 +110,10 @@ Route::prefix('/v1.0.0')->group(function () {
 
 			// Assignments (Read)
 			Route::apiResource('assignments', AssignmentController::class)->only(['index', 'show']);
+
+            // Pedagogical Resources (Management for teacher+)
+            Route::post('pedagogical-resources', [PedagogicalResourceController::class, 'store']);
+            Route::delete('pedagogical-resources/{resource}', [PedagogicalResourceController::class, 'destroy']);
 		});
 
 		// ----------------------------------------------------------------------
