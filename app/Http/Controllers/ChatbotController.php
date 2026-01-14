@@ -32,87 +32,78 @@ class ChatbotController extends Controller
         try {
             // Utiliser l'API Hugging Face Router (format Chat Completions)
             $hfApiToken = config('services.huggingface.api_token');
-            // Modèle par défaut : utiliser un modèle qui fonctionne avec l'API Router
-            // Note: meta-llama nécessite des providers spécifiques activés
             $hfModel = config('services.huggingface.model', 'mistralai/Mistral-7B-Instruct-v0.2');
 
+            // Si le token est manquant, utiliser le fallback directement
             if (!$hfApiToken) {
-                return ApiResponse::sendResponse(
-                    false,
-                    null,
-                    'Configuration Hugging Face manquante. Veuillez configurer HUGGINGFACE_API_TOKEN dans le fichier .env',
-                    500
-                );
+                Log::warning('Configuration Hugging Face manquante. Utilisation du fallback.');
+                $fallbackResponse = $this->getFallbackResponse($user, $context, $message, $conversationHistory);
+                return ApiResponse::sendResponse(true, [
+                    'response' => $fallbackResponse,
+                    'model' => 'fallback-rule-based',
+                ], 'Réponse (mode hors ligne)', 200);
             }
 
             // Construire le prompt système selon le rôle de l'utilisateur
             $systemPrompt = $this->buildSystemPrompt($user, $context);
             
-            // Construire les messages au format Chat Completions (pour l'API Router)
+            // Construire les messages au format Chat Completions
             $messages = $this->buildMessages($systemPrompt, $conversationHistory, $message);
 
-            // Appel à l'API Hugging Face Router (format Chat Completions)
-            // Nécessite la permission "Make calls to Inference Providers"
             $apiUrl = "https://router.huggingface.co/v1/chat/completions";
             
             Log::info('Chatbot API Request', [
                 'url' => $apiUrl,
                 'model' => $hfModel,
-                'messages_count' => count($messages),
             ]);
             
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $hfApiToken,
-                'Content-Type' => 'application/json',
-            ])->timeout(90)->post($apiUrl, [
-                'model' => $hfModel,
-                'messages' => $messages,
-                'max_tokens' => 512,
-                'temperature' => 0.7,
-                'top_p' => 0.9,
-            ]);
-
-            if ($response->failed()) {
-                $errorBody = $response->body();
-                $errorData = json_decode($errorBody, true);
-                
-                Log::warning('Hugging Face API Error - Using fallback chatbot', [
-                    'status' => $response->status(),
-                    'body' => $errorBody,
-                    'url' => $apiUrl,
+            try {
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $hfApiToken,
+                    'Content-Type' => 'application/json',
+                ])->timeout(10)->post($apiUrl, [ // Timeout réduit à 10s pour éviter de bloquer
                     'model' => $hfModel,
+                    'messages' => $messages,
+                    'max_tokens' => 512,
+                    'temperature' => 0.7,
+                    'top_p' => 0.9,
                 ]);
 
-                // Si l'API Hugging Face échoue, utiliser le système de fallback avec réponses pré-définies
+                if ($response->failed()) {
+                    throw new \Exception('API Error: ' . $response->status());
+                }
+
+                $responseData = $response->json();
+                $generatedText = $this->extractChatCompletionText($responseData);
+
+                return ApiResponse::sendResponse(true, [
+                    'response' => $generatedText,
+                    'model' => $hfModel,
+                ], 'Réponse générée avec succès', 200);
+
+            } catch (\Exception $e) {
+                Log::warning('Chatbot API/Connectivity Error: ' . $e->getMessage() . ' - Switching to fallback.');
+                // En cas d'erreur API, timeout, ou autre : utiliser le fallback
                 $fallbackResponse = $this->getFallbackResponse($user, $context, $message, $conversationHistory);
                 
                 return ApiResponse::sendResponse(true, [
                     'response' => $fallbackResponse,
                     'model' => 'fallback-rule-based',
-                ], 'Réponse générée avec succès (mode fallback)', 200);
+                ], 'Réponse (mode fallback)', 200);
             }
 
-            $responseData = $response->json();
-            
-            // Extraire la réponse générée (format Chat Completions)
-            $generatedText = $this->extractChatCompletionText($responseData);
-
-            return ApiResponse::sendResponse(true, [
-                'response' => $generatedText,
-                'model' => $hfModel,
-            ], 'Réponse générée avec succès', 200);
-
         } catch (\Exception $e) {
-            Log::error('Chatbot Error', [
+            Log::error('Chatbot Critical Error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            // Même en cas d'erreur critique, essayer de répondre quelque chose
             return ApiResponse::sendResponse(
-                false,
-                null,
-                'Une erreur est survenue lors du traitement de votre message.',
-                500
+                true,
+                ['response' => "Désolé, je rencontre des difficultés techniques momentanées. Je peux tout de même vous aider avec les fonctions de base. Que souhaitez-vous faire ?", 'model' => 'error-fallback'],
+                'Réponse de secours suite erreur critique',
+                200
             );
         }
     }
