@@ -144,7 +144,8 @@ class ChatbotController extends Controller
         $systemPrompt .= "- Dans les emplois du temps, les classes et matières disponibles dépendent de l'année scolaire sélectionnée.\n";
         $systemPrompt .= "- Pour créer un emploi du temps, il faut d'abord sélectionner l'année scolaire, puis la classe, puis la matière.\n";
         $systemPrompt .= "- Les matières affichées dans le formulaire d'emploi du temps sont celles assignées à la classe sélectionnée pour l'année scolaire choisie.\n";
-        $systemPrompt .= "- Chaque année scolaire a ses propres classes (sections) et matières.\n\n";
+        $systemPrompt .= "- Chaque année scolaire a ses propres classes (sections) et matières.\n";
+        $systemPrompt .= "- Le module 'Ressources' permet aux enseignants et administrateurs de partager des documents (cours, devoirs) avec les élèves. Les ressources sont filtrées par année scolaire.\n\n";
         
         $systemPrompt .= "Contexte de la conversation :\n";
 
@@ -386,6 +387,26 @@ class ChatbotController extends Controller
                     return "Pour enregistrer un paiement :\n1. Allez dans la section 'Gestion des paiements'\n2. Cliquez sur 'Nouveau paiement'\n3. Sélectionnez l'élève concerné\n4. Entrez le montant et le type de paiement (Écolage, Inscription, Autre)\n5. Sélectionnez la date de paiement\n6. Cliquez sur 'Enregistrer'";
                 } else {
                     return "Pour consulter vos paiements :\n1. Allez dans votre profil ou la section 'Paiements'\n2. Vous verrez l'historique de vos paiements et le solde restant";
+                }
+            }
+        }
+        
+        // Guide pour les ressources pédagogiques (Nouveau)
+        if (strpos($messageLower, 'ressource') !== false || strpos($messageLower, 'support') !== false || 
+            strpos($messageLower, 'cours') !== false || strpos($messageLower, 'document') !== false ||
+            strpos($messageLower, 'upload') !== false || strpos($messageLower, 'télécharger') !== false) {
+            
+            if ($isEnglish) {
+                if ($role === 'admin' || $role === 'directeur' || $role === 'enseignant') {
+                    return "To manage pedagogical resources (courses, documents):\n1. Go to the 'Resources' section\n2. To add a file: Click 'Add Resource'\n3. Training Year (Required): Select the active year\n4. Title: Enter a clear title\n5. Type: Course, Assignment, Exam, etc.\n6. Class/Subject: Optional filters to target specific groups\n7. File: Upload your PDF, Word, etc.\n8. Click 'Add Resource'";
+                } else {
+                    return "To view course materials:\n1. Go to the 'Resources' section\n2. You will see the list of documents shared by your teachers\n3. You can filter by subject or looking for specific titles\n4. Click the download icon to save the file.";
+                }
+            } else {
+                if ($role === 'admin' || $role === 'directeur' || $role === 'enseignant') {
+                    return "Pour gérer les ressources pédagogiques (cours, documents) :\n1. Allez dans la section 'Ressources'\n2. Pour ajouter un fichier : Cliquez sur 'Ajouter une ressource'\n3. Année scolaire (Obligatoire) : Sélectionnez l'année concernée\n4. Remplissez le titre et la description\n5. Type : Choisissez Cours, Devoir, Examen, etc.\n6. Classe/Matière : Filtrez pour cibler une classe spécifique si besoin\n7. Fichier : Téléversez votre document (PDF, Word, etc.)\n8. Cliquez sur 'Ajouter la ressource'";
+                } else {
+                    return "Pour consulter les supports de cours :\n1. Allez dans la section 'Ressources'\n2. Vous verrez la liste des documents partagés par vos enseignants\n3. Vous pouvez filtrer par matière\n4. Cliquez sur l'icône de téléchargement pour récupérer le fichier.";
                 }
             }
         }
