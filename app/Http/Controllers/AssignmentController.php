@@ -96,7 +96,7 @@ class AssignmentController extends Controller
                 return ApiResponse::sendResponse(false, [], 'Aucune section trouvée pour créer l\'examen.', 422);
             }
 
-            // Si une matière spécifique est fournie, vérifier qu'elle est assignée aux sections
+            // Si une matière spécifique est fournie, s'assurer qu'elle est assignée aux sections (si non, l'assigner à la volée avec coef 1)
             if ($request->subject_id && !$applyToAllSubjects) {
                 foreach ($targetSections as $section) {
                     $sectionSubject = SectionSubject::where('section_id', $section->id)
@@ -105,7 +105,13 @@ class AssignmentController extends Controller
                         ->first();
 
                     if (!$sectionSubject) {
-                        return ApiResponse::sendResponse(false, [], "La matière n'est pas assignée à la section {$section->name}.", 422);
+                        // Assigner automatiquement à la volée avec un coefficient par défaut de 1
+                        SectionSubject::create([
+                            'section_id' => $section->id,
+                            'subject_id' => $request->subject_id,
+                            'school_year_id' => $activeYear->id,
+                            'coefficient' => 1,
+                        ]);
                     }
                 }
             }
@@ -209,7 +215,13 @@ class AssignmentController extends Controller
                     ->first();
 
                 if (!$sectionSubject) {
-                    return ApiResponse::sendResponse(false, [], 'Cette matière n\'est pas assignée à cette section.', 422);
+                    // Assigner automatiquement à la volée avec un coefficient par défaut de 1
+                    SectionSubject::create([
+                        'section_id' => $targetSectionId,
+                        'subject_id' => $request->subject_id,
+                        'school_year_id' => $assignment->school_year_id,
+                        'coefficient' => 1,
+                    ]);
                 }
             }
 
