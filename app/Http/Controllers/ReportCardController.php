@@ -388,24 +388,50 @@ class ReportCardController extends Controller
             ->with(['assignment.subject']) // Load assignment and subject
             ->get()
             ->filter(function($grade) {
-                // Filtrer les notes qui ont un assignment et un subject valides
-                return $grade->assignment && $grade->assignment->subject_id && $grade->assignment->subject;
+                // Filtrer les notes qui ont un assignment valide (et si spécifique, un sujet valide)
+                if (!$grade->assignment) {
+                    return false;
+                }
+                if ($grade->assignment->subject_id && !$grade->assignment->subject) {
+                    return false;
+                }
+                return true;
             });
 
-        // 2. Group by subject
+        // 2. Group by subject / global assignments
         $subjectsData = [];
         $gradesBySubject = $grades->groupBy(function($grade) {
-            return $grade->assignment->subject_id ?? 'unknown';
+            return $grade->assignment->subject_id ?? 'global_' . $grade->assignment_id;
         });
 
         foreach ($gradesBySubject as $subjectId => $subjectGrades) {
             if ($subjectGrades->isEmpty()) continue;
 
             $firstGrade = $subjectGrades->first();
+
+            // Si c'est une note globale (sans matière spécifique)
+            if (str_starts_with($subjectId, 'global_')) {
+                $coefficient = 1;
+                $studentAverage = $this->calculateSubjectAverage($subjectGrades);
+                $classStats = $this->getClassStats($reportCard, $subjectId);
+
+                $subjectsData[] = [
+                    'name' => $firstGrade->assignment->title ?? 'Général',
+                    'teacher' => 'Enseignant', 
+                    'coefficient' => $coefficient,
+                    'studentAverage' => $studentAverage,
+                    'classMin' => $classStats['min'],
+                    'classMax' => $classStats['max'],
+                    'classAverage' => $classStats['avg'],
+                    'appreciation' => 'Satisfaisant',
+                ];
+                continue;
+            }
+
             $subject = $firstGrade->assignment->subject ?? null;
             
-            // Skip if subject is null or subjectId is invalid
-            if (!$subject || !$subjectId || $subjectId === 'unknown') {
+            // Skip if subject is null
+            if (!$subject) {
                 continue;
             }
             
@@ -522,8 +548,14 @@ class ReportCardController extends Controller
     private function getClassStats($reportCard, $subjectId) {
         // Récupérer tous les assignments de la section pour cette année et cette matière
         $assignmentQuery = \App\Models\Assignment::where('section_id', $reportCard->section_id)
-            ->where('school_year_id', $reportCard->school_year_id)
-            ->where('subject_id', $subjectId);
+            ->where('school_year_id', $reportCard->school_year_id);
+
+        if (str_starts_with($subjectId, 'global_')) {
+            $assignmentId = (int) str_replace('global_', '', $subjectId);
+            $assignmentQuery->where('id', $assignmentId);
+        } else {
+            $assignmentQuery->where('subject_id', $subjectId);
+        }
             
         if ($reportCard->period) {
             $assignmentQuery->where('period', $reportCard->period);
@@ -533,10 +565,6 @@ class ReportCardController extends Controller
         
         // Query grades using assignment IDs
         $query = Grade::whereIn('assignment_id', $assignmentIds);
-
-        // We need averages PER STUDENT first
-        $allGrades = $query->get();
-        // ... rest logic same
 
         // We need averages PER STUDENT first
         $allGrades = $query->get();
