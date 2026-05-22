@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('school_id')->constrained('schools')->onDelete('cascade');
             $table->year('year_start');
             $table->year('year_end');
-            $table->string('label', 100)->unique();
+            $table->string('label', 100);
             $table->boolean('is_active')->default(true);
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
@@ -25,6 +25,8 @@ return new class extends Migration
             $table->tinyInteger('total_periods')->default(3)
                 ->comment('Number of periods in the school year (2 for semester, 3 for trimester)');
             $table->timestamps();
+            
+            $table->unique(['school_id', 'label']);
             
             // Ensure only one school year is active at a time (partially supported by some DBs, logic handled in app usually, but unique index works if we use null for inactive or just handle it in app code. 
             // However, boolean unique constraint only allows one 'true' if we treat false as different or if we use partial index. 
