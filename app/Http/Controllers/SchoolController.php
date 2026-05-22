@@ -28,7 +28,7 @@ class SchoolController extends Controller
             'address' => 'nullable|string|max:255',
             'phone' => 'required|string|max:20|unique:users,phone', // Phone requis et unique pour le directeur
             'email' => 'required|email|max:255|unique:users,email', // Email requis pour l'envoi
-            'logo' => 'nullable|image|max:2048', // 2MB Max
+            'logo' => 'nullable|image|max:5120', // 5MB Max
         ]);
 
         \DB::beginTransaction();
@@ -119,7 +119,7 @@ class SchoolController extends Controller
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'logo' => 'nullable|image|max:2048',
+            'logo' => 'nullable|image|max:5120', // 5MB Max
             'is_active' => 'boolean'
         ]);
 
