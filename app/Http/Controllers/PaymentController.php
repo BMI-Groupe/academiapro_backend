@@ -82,6 +82,11 @@ class PaymentController extends Controller
     public function show(Payment $payment)
     {
         $payment->load(['student', 'user', 'schoolYear']);
+
+        if (strtoupper($payment->type) === 'TUITION') {
+            $payment->balance = $this->paymentService->getStudentBalance($payment->student_id, $payment->school_year_id);
+        }
+
         return ApiResponse::sendResponse(true, $payment, 'Détails du paiement récupérés.', 200);
     }
 
